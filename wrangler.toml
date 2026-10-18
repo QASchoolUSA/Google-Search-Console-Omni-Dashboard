@@ -1,7 +1,11 @@
 name = "google-search-console-omni-dashboard"
+main = "worker.ts"
 compatibility_date = "2024-04-01"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = "dist"
+
+# Static Assets (SolidJS built frontend)
+[assets]
+directory = "./dist"
 
 # Cloudflare D1 Database binding
 [[d1_databases]]

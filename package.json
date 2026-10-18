@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=google-search-console-omni-dashboard",
+    "deploy": "npm run build && wrangler deploy",
     "dev:worker": "npm run build && wrangler dev",
     "d1:create": "wrangler d1 create gsc-database",
     "d1:migrate:local": "wrangler d1 execute gsc-database --local --file=schema.sql",
