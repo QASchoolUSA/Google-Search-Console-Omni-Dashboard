@@ -26,6 +26,7 @@ import {
 import { onRequestPost as syncGsc } from './functions/api/sync/index';
 import { onRequestGet as getAggregateMetrics } from './functions/api/metrics/aggregate';
 import { onRequestGet as getSiteMetrics } from './functions/api/metrics/[siteUrl]';
+import { onRequestGet as auditSite } from './functions/api/audit/[siteUrl]';
 
 export interface WorkerEnv extends Env {
   ASSETS: Fetcher;
@@ -98,6 +99,13 @@ export default {
       if (metricSiteMatch && method === 'GET') {
         const siteUrl = decodeURIComponent(metricSiteMatch[1]);
         return await getSiteMetrics(makeContext({ siteUrl }) as any);
+      }
+
+      // 6. Live Audit route (Side-by-side GSC Parity verification)
+      const auditMatch = path.match(/^\/api\/audit\/([^/]+)$/);
+      if (auditMatch && method === 'GET') {
+        const siteUrl = decodeURIComponent(auditMatch[1]);
+        return await auditSite(makeContext({ siteUrl }) as any);
       }
 
       // If it starts with /api/ and didn't match, return 404

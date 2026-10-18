@@ -3,8 +3,12 @@ import { getSession } from '../../utils/google';
 
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   try {
-    // 28 days window timestamp for computing rollups
-    const twentyEightDaysAgo = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Find latest available date in database to anchor 28d window accurately
+    const maxRow = await env.DB.prepare('SELECT MAX(date) as maxDate FROM daily_metrics').first<{ maxDate: string | null }>();
+    const anchorDate = maxRow?.maxDate ? new Date(maxRow.maxDate) : new Date();
+
+    const currentEnd = anchorDate.toISOString().split('T')[0];
+    const currentStart = new Date(anchorDate.getTime() - 27 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const { results } = await env.DB.prepare(`
       SELECT 
@@ -25,16 +29,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
           ELSE 0.0 
         END as avg_ctr_28d,
         CASE 
-          WHEN COUNT(d.id) > 0 
-          THEN ROUND(AVG(d.position), 1)
+          WHEN COALESCE(SUM(d.impressions), 0) > 0 
+          THEN ROUND(CAST(SUM(d.position * d.impressions) AS REAL) / CAST(SUM(d.impressions) AS REAL), 1)
           ELSE 0.0 
         END as avg_position_28d
       FROM properties p
       LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN daily_metrics d ON d.site_url = p.site_url AND d.date >= ?
+      LEFT JOIN daily_metrics d ON d.site_url = p.site_url AND d.date >= ? AND d.date <= ?
       GROUP BY p.id, p.site_url, p.display_name, p.category_id, p.permission_level, p.last_synced_at, p.is_favorite, c.name, c.color
       ORDER BY total_clicks_28d DESC, p.site_url ASC
-    `).bind(twentyEightDaysAgo).all();
+    `).bind(currentStart, currentEnd).all();
 
     return new Response(JSON.stringify(results || []), {
       headers: { 'Content-Type': 'application/json' }

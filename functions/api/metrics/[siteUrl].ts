@@ -7,10 +7,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     const url = new URL(request.url);
     const days = parseInt(url.searchParams.get('days') || '28', 10);
 
-    const now = Date.now();
-    const currentStart = new Date(now - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const previousStart = new Date(now - days * 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
     // Property details
     const property = await env.DB.prepare(`
       SELECT p.*, c.name as category_name, c.color as category_color
@@ -26,7 +22,19 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
       });
     }
 
-    // Current period totals
+    // Find latest available date for this site to anchor the date window accurately
+    const maxRow = await env.DB.prepare(
+      'SELECT MAX(date) as maxDate FROM daily_metrics WHERE site_url = ?'
+    ).bind(siteUrl).first<{ maxDate: string | null }>();
+    const anchorDate = maxRow?.maxDate ? new Date(maxRow.maxDate) : new Date();
+
+    const currentEnd = anchorDate.toISOString().split('T')[0];
+    const currentStart = new Date(anchorDate.getTime() - (days - 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const prevEnd = currentStart;
+    const prevStart = new Date(new Date(currentStart).getTime() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Current period totals using impression-weighted position
     const currentTotal = await env.DB.prepare(`
       SELECT 
         COALESCE(SUM(clicks), 0) as totalClicks,
@@ -37,13 +45,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
           ELSE 0.0 
         END as avgCtr,
         CASE 
-          WHEN COUNT(id) > 0 
-          THEN ROUND(AVG(position), 1)
+          WHEN COALESCE(SUM(impressions), 0) > 0 
+          THEN ROUND(CAST(SUM(position * impressions) AS REAL) / CAST(SUM(impressions) AS REAL), 1)
           ELSE 0.0 
         END as avgPosition
       FROM daily_metrics
-      WHERE site_url = ? AND date >= ?
-    `).bind(siteUrl, currentStart).first<{ totalClicks: number; totalImpressions: number; avgCtr: number; avgPosition: number }>() || {
+      WHERE site_url = ? AND date >= ? AND date <= ?
+    `).bind(siteUrl, currentStart, currentEnd).first<{ totalClicks: number; totalImpressions: number; avgCtr: number; avgPosition: number }>() || {
       totalClicks: 0,
       totalImpressions: 0,
       avgCtr: 0,
@@ -61,13 +69,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
           ELSE 0.0 
         END as avgCtr,
         CASE 
-          WHEN COUNT(id) > 0 
-          THEN ROUND(AVG(position), 1)
+          WHEN COALESCE(SUM(impressions), 0) > 0 
+          THEN ROUND(CAST(SUM(position * impressions) AS REAL) / CAST(SUM(impressions) AS REAL), 1)
           ELSE 0.0 
         END as avgPosition
       FROM daily_metrics
       WHERE site_url = ? AND date >= ? AND date < ?
-    `).bind(siteUrl, previousStart, currentStart).first<{ totalClicks: number; totalImpressions: number; avgCtr: number; avgPosition: number }>() || {
+    `).bind(siteUrl, prevStart, prevEnd).first<{ totalClicks: number; totalImpressions: number; avgCtr: number; avgPosition: number }>() || {
       totalClicks: 0,
       totalImpressions: 0,
       avgCtr: 0,
@@ -83,31 +91,27 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     const { results: timeline } = await env.DB.prepare(`
       SELECT date, clicks, impressions, ctr, position
       FROM daily_metrics
-      WHERE site_url = ? AND date >= ?
+      WHERE site_url = ? AND date >= ? AND date <= ?
       ORDER BY date ASC
-    `).bind(siteUrl, currentStart).all<DailyMetric>();
+    `).bind(siteUrl, currentStart, currentEnd).all<DailyMetric>();
 
-    // Top queries
+    // Top queries (clean deduplicated snapshot)
     const { results: topQueries } = await env.DB.prepare(`
-      SELECT query, SUM(clicks) as clicks, SUM(impressions) as impressions,
-             ROUND(AVG(ctr), 2) as ctr, ROUND(AVG(position), 1) as position
+      SELECT query, clicks, impressions, ctr, position
       FROM query_metrics
-      WHERE site_url = ? AND date >= ?
-      GROUP BY query
+      WHERE site_url = ?
       ORDER BY clicks DESC, impressions DESC
       LIMIT 100
-    `).bind(siteUrl, currentStart).all<QueryMetric>();
+    `).bind(siteUrl).all<QueryMetric>();
 
     // Top pages
     const { results: topPages } = await env.DB.prepare(`
-      SELECT page, SUM(clicks) as clicks, SUM(impressions) as impressions,
-             ROUND(AVG(ctr), 2) as ctr, ROUND(AVG(position), 1) as position
+      SELECT page, clicks, impressions, ctr, position
       FROM page_metrics
-      WHERE site_url = ? AND date >= ?
-      GROUP BY page
+      WHERE site_url = ?
       ORDER BY clicks DESC, impressions DESC
       LIMIT 50
-    `).bind(siteUrl, currentStart).all<PageMetric>();
+    `).bind(siteUrl).all<PageMetric>();
 
     return new Response(JSON.stringify({
       property,
@@ -119,6 +123,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
       impressionsChange: calcChange(currentTotal.totalImpressions, prevTotal.totalImpressions),
       ctrChange: Math.round((currentTotal.avgCtr - prevTotal.avgCtr) * 10) / 10,
       positionChange: Math.round((prevTotal.avgPosition - currentTotal.avgPosition) * 10) / 10,
+      startDate: currentStart,
+      endDate: currentEnd,
       timeline: timeline || [],
       topQueries: topQueries || [],
       topPages: topPages || []

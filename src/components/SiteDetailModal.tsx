@@ -1,4 +1,4 @@
-import { Component, createSignal, For, onMount, createResource } from 'solid-js';
+import { Component, createSignal, For, onMount, createResource, Show } from 'solid-js';
 import { 
   X, 
   ExternalLink, 
@@ -9,10 +9,12 @@ import {
   Target, 
   FileText, 
   Smartphone,
-  Sparkles
+  Sparkles,
+  ShieldCheck
 } from 'lucide-solid';
 import { api } from '../services/api';
 import { PerformanceChart } from './PerformanceChart';
+import { DataAuditModal } from './DataAuditModal';
 import { MockQuery, MockPage } from '../services/mockData';
 
 interface SiteDetailModalProps {
@@ -24,6 +26,7 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
   const [activeTab, setActiveTab] = createSignal<'queries' | 'pages' | 'tech'>('queries');
   const [queryFilter, setQueryFilter] = createSignal<'all' | 'striking' | 'top3'>('all');
   const [searchTerm, setSearchTerm] = createSignal('');
+  const [isAuditOpen, setIsAuditOpen] = createSignal(false);
 
   const [siteData] = createResource(
     () => props.siteUrl,
@@ -71,6 +74,15 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
           </div>
 
           <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+            <button
+              class="btn btn-outline"
+              onClick={() => setIsAuditOpen(true)}
+              style={{ padding: '6px 12px', "font-size": '0.78rem', color: '#34d399', "border-color": 'rgba(16, 185, 129, 0.4)' }}
+              title="Audit and verify 100% data parity against live Google Search Console API"
+            >
+              <ShieldCheck size={13} color="var(--color-success)" />
+              <span>Verify Data Parity</span>
+            </button>
             <a 
               href={props.siteUrl} 
               target="_blank" 
@@ -249,6 +261,10 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
           </button>
         </div>
       </div>
+
+      <Show when={isAuditOpen()}>
+        <DataAuditModal siteUrl={props.siteUrl} onClose={() => setIsAuditOpen(false)} />
+      </Show>
     </div>
   );
 };

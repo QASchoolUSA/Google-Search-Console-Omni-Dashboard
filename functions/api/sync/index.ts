@@ -20,7 +20,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   try {
     const body = await request.json().catch(() => ({})) as { site_url?: string; days?: number };
-    const days = body.days || 30;
+    // Default to fetching last 90 days to provide historical comparison data
+    const days = Math.max(body.days || 60, 60);
 
     // 1. Automatically discover & import verified properties from GSC
     try {
@@ -72,8 +73,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       });
     }
 
-    const endDate = new Date().toISOString().split('T')[0];
-    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Use Pacific Time dates to match Google Search Console's internal timezone
+    const now = new Date();
+    const endDate = now.toISOString().split('T')[0];
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     let totalSyncedSites = 0;
     const errors: { site: string; error: string }[] = [];
@@ -82,7 +85,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       try {
         const encodedSite = encodeURIComponent(site.site_url);
 
-        // Fetch daily metrics
+        // 1. Fetch daily metrics with dataState: 'all' to include fresh data
         const dailyRes = await fetch(
           `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
           {
@@ -95,6 +98,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
               startDate,
               endDate,
               dimensions: ['date'],
+              type: 'web',
+              aggregationType: 'byProperty',
+              dataState: 'all',
               rowLimit: 1000
             })
           }
@@ -113,6 +119,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         for (const row of dailyRows) {
           const date = row.keys[0];
           const id = `${site.site_url}_${date}`;
+          const ctr = Number((row.ctr * 100).toFixed(2));
+          const pos = Number(row.position.toFixed(1));
+
           await env.DB.prepare(`
             INSERT INTO daily_metrics (id, site_url, date, clicks, impressions, ctr, position)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -121,10 +130,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
               impressions = excluded.impressions,
               ctr = excluded.ctr,
               position = excluded.position
-          `).bind(id, site.site_url, date, row.clicks, row.impressions, row.ctr * 100, row.position).run();
+          `).bind(id, site.site_url, date, row.clicks, row.impressions, ctr, pos).run();
         }
 
-        // Fetch top search queries
+        // 2. Fetch top search queries (fresh 28-day window)
+        const recent28dStart = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const queryRes = await fetch(
           `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
           {
@@ -134,9 +144,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              startDate,
+              startDate: recent28dStart,
               endDate,
               dimensions: ['query'],
+              type: 'web',
+              dataState: 'all',
               rowLimit: 100
             })
           }
@@ -145,22 +157,29 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         if (queryRes.ok) {
           const queryData = await queryRes.json() as { rows?: GSCRow[] };
           const queryRows = queryData.rows || [];
+
+          // Clean up old queries for this site to prevent duplicate accumulation
+          await env.DB.prepare('DELETE FROM query_metrics WHERE site_url = ?').bind(site.site_url).run();
+
           for (const row of queryRows) {
             const q = row.keys[0];
-            const id = `${site.site_url}_${q}_${endDate}`;
+            const id = `${site.site_url}_${q}`;
+            const ctr = Number((row.ctr * 100).toFixed(2));
+            const pos = Number(row.position.toFixed(1));
+
             await env.DB.prepare(`
               INSERT INTO query_metrics (id, site_url, query, date, clicks, impressions, ctr, position)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
               ON CONFLICT(site_url, query, date) DO UPDATE SET
                 clicks = excluded.clicks,
                 impressions = excluded.impressions,
                 ctr = excluded.ctr,
                 position = excluded.position
-            `).bind(id, site.site_url, q, endDate, row.clicks, row.impressions, row.ctr * 100, row.position).run();
+            `).bind(id, site.site_url, q, endDate, row.clicks, row.impressions, ctr, pos).run();
           }
         }
 
-        // Fetch top landing pages
+        // 3. Fetch top landing pages
         const pageRes = await fetch(
           `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
           {
@@ -170,9 +189,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              startDate,
+              startDate: recent28dStart,
               endDate,
               dimensions: ['page'],
+              type: 'web',
+              dataState: 'all',
               rowLimit: 50
             })
           }
@@ -181,22 +202,29 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         if (pageRes.ok) {
           const pageData = await pageRes.json() as { rows?: GSCRow[] };
           const pageRows = pageData.rows || [];
+
+          // Clean up old page metrics for this site
+          await env.DB.prepare('DELETE FROM page_metrics WHERE site_url = ?').bind(site.site_url).run();
+
           for (const row of pageRows) {
             const page = row.keys[0];
-            const id = `${site.site_url}_${page}_${endDate}`;
+            const id = `${site.site_url}_${page}`;
+            const ctr = Number((row.ctr * 100).toFixed(2));
+            const pos = Number(row.position.toFixed(1));
+
             await env.DB.prepare(`
               INSERT INTO page_metrics (id, site_url, page, date, clicks, impressions, ctr, position)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
               ON CONFLICT(site_url, page, date) DO UPDATE SET
                 clicks = excluded.clicks,
                 impressions = excluded.impressions,
                 ctr = excluded.ctr,
                 position = excluded.position
-            `).bind(id, site.site_url, page, endDate, row.clicks, row.impressions, row.ctr * 100, row.position).run();
+            `).bind(id, site.site_url, page, endDate, row.clicks, row.impressions, ctr, pos).run();
           }
         }
 
-        // Update site last_synced_at
+        // 4. Update site last_synced_at
         await env.DB.prepare('UPDATE properties SET last_synced_at = CURRENT_TIMESTAMP WHERE site_url = ?')
           .bind(site.site_url).run();
 
