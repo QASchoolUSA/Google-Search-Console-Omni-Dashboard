@@ -16,7 +16,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
-  const redirectUri = getRedirectUri(request);
+  const redirectUri = getRedirectUri(request, env);
   const authUrl = buildAuthUrl(env.GOOGLE_CLIENT_ID, redirectUri);
 
   return Response.redirect(authUrl, 302);

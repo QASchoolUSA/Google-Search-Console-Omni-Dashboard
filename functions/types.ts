@@ -5,6 +5,7 @@ export interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   SESSION_SECRET?: string;
+  REDIRECT_URI?: string;
   ENVIRONMENT?: string;
 }
 

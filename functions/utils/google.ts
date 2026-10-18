@@ -12,7 +12,10 @@ export const GSC_SCOPES = [
   'profile'
 ].join(' ');
 
-export function getRedirectUri(request: Request): string {
+export function getRedirectUri(request: Request, env?: Env): string {
+  if (env?.REDIRECT_URI) {
+    return env.REDIRECT_URI;
+  }
   const url = new URL(request.url);
   return `${url.origin}/api/auth/callback`;
 }

@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const redirectUri = getRedirectUri(request);
+    const redirectUri = getRedirectUri(request, env);
     const tokenData = await exchangeCodeForTokens(
       code,
       env.GOOGLE_CLIENT_ID,
