@@ -6,8 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "dev:pages": "npm run build && wrangler pages dev dist --d1 DB=gsc-database",
+    "d1:create": "wrangler d1 create gsc-database",
+    "d1:migrate:local": "wrangler d1 execute gsc-database --local --file=schema.sql",
+    "d1:migrate:remote": "wrangler d1 execute gsc-database --remote --file=schema.sql",
+    "lint": "oxlint"
   },
   "dependencies": {
     "echarts": "^6.1.0",
