@@ -394,7 +394,9 @@ class ApiService {
         clicks: { live: totalClicks, db: totalClicks, diff: 0 },
         impressions: { live: totalImp, db: totalImp, diff: 0 },
         ctr: { live: avgCtr, db: avgCtr, diff: 0 },
-        position: { live: avgPos, db: avgPos, diff: 0 }
+        position: { live: avgPos, db: avgPos, diff: 0 },
+        duplicateDatesCount: 0,
+        missingDatesCount: 0
       },
       auditDays
     };
@@ -412,6 +414,8 @@ export interface AuditResult {
     impressions: { live: number; db: number; diff: number };
     ctr: { live: number; db: number; diff: number };
     position: { live: number; db: number; diff: number };
+    duplicateDatesCount?: number;
+    missingDatesCount?: number;
   };
   auditDays: {
     date: string;

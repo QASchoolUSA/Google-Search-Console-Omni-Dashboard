@@ -107,13 +107,33 @@ export const DataAuditModal: Component<DataAuditModalProps> = (props) => {
                 </div>
               </div>
 
-              <div class="engine-pill" style={{
-                background: auditData()?.parityScore === 100 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
-                color: auditData()?.parityScore === 100 ? '#34d399' : '#fbbf24',
-                padding: '6px 12px',
-                "font-size": '0.78rem'
-              }}>
-                {auditData()?.parityScore === 100 ? '✓ Zero Discrepancies' : 'Discrepancy Detected'}
+              <div style={{ display: 'flex', "align-items": 'center', gap: '8px', "flex-wrap": 'wrap' }}>
+                <span class="engine-pill" style={{
+                  background: (auditData()?.summary.duplicateDatesCount || 0) === 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                  color: (auditData()?.summary.duplicateDatesCount || 0) === 0 ? '#34d399' : '#fb7185',
+                  padding: '4px 10px',
+                  "font-size": '0.75rem'
+                }}>
+                  {(auditData()?.summary.duplicateDatesCount || 0) === 0 ? '✓ 0 Duplicates' : `⚠ ${auditData()?.summary.duplicateDatesCount} Duplicates`}
+                </span>
+
+                <span class="engine-pill" style={{
+                  background: (auditData()?.summary.missingDatesCount || 0) === 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                  color: (auditData()?.summary.missingDatesCount || 0) === 0 ? '#34d399' : '#fb7185',
+                  padding: '4px 10px',
+                  "font-size": '0.75rem'
+                }}>
+                  {(auditData()?.summary.missingDatesCount || 0) === 0 ? '✓ 0 Missing Days' : `⚠ ${auditData()?.summary.missingDatesCount} Missing Days`}
+                </span>
+
+                <div class="engine-pill" style={{
+                  background: auditData()?.parityScore === 100 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                  color: auditData()?.parityScore === 100 ? '#34d399' : '#fbbf24',
+                  padding: '6px 12px',
+                  "font-size": '0.78rem'
+                }}>
+                  {auditData()?.parityScore === 100 ? '✓ 100% GSC Matched' : 'Discrepancy Detected'}
+                </div>
               </div>
             </div>
 

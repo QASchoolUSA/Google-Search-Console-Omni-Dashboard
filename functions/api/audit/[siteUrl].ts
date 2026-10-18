@@ -24,9 +24,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     const url = new URL(request.url);
     const days = parseInt(url.searchParams.get('days') || '28', 10);
 
-    const now = new Date();
-    const endDate = now.toISOString().split('T')[0];
-    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Anchor to latest available date in database for this site to test exact parity
+    const maxRow = await env.DB.prepare(
+      'SELECT MAX(date) as maxDate FROM daily_metrics WHERE site_url = ?'
+    ).bind(siteUrl).first<{ maxDate: string | null }>();
+    const anchorDate = maxRow?.maxDate ? new Date(maxRow.maxDate) : new Date();
+
+    const endDate = anchorDate.toISOString().split('T')[0];
+    const startDate = new Date(anchorDate.getTime() - (days - 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const encodedSite = encodeURIComponent(siteUrl);
 
     // 1. Fetch live metrics directly from Google Search Console API
@@ -70,6 +75,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     `).bind(siteUrl, startDate, endDate).all<{ date: string; clicks: number; impressions: number; ctr: number; position: number }>();
 
     const dbMap = new Map((dbRows || []).map(r => [r.date, r]));
+
+    // Check for any duplicate dates in DB
+    const { results: dupRows } = await env.DB.prepare(`
+      SELECT date, COUNT(*) as count 
+      FROM daily_metrics 
+      WHERE site_url = ? 
+      GROUP BY date 
+      HAVING count > 1
+    `).bind(siteUrl).all<{ date: string; count: number }>();
+    const duplicateDatesCount = dupRows ? dupRows.length : 0;
 
     // 3. Compute day-by-day comparison
     let liveTotalClicks = 0;
@@ -119,6 +134,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     const dbAvgPos = dbTotalImpressions > 0 ? Number((dbWeightedPosSum / dbTotalImpressions).toFixed(1)) : 0;
 
     const matchedDays = auditDays.filter(d => d.isPerfectMatch).length;
+    const missingDatesCount = auditDays.filter(d => !dbMap.has(d.date)).length;
     const parityScore = auditDays.length > 0 ? Math.round((matchedDays / auditDays.length) * 100) : 100;
 
     return new Response(JSON.stringify({
@@ -131,7 +147,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
         clicks: { live: liveTotalClicks, db: dbTotalClicks, diff: dbTotalClicks - liveTotalClicks },
         impressions: { live: liveTotalImpressions, db: dbTotalImpressions, diff: dbTotalImpressions - liveTotalImpressions },
         ctr: { live: liveAvgCtr, db: dbAvgCtr, diff: Number((dbAvgCtr - liveAvgCtr).toFixed(2)) },
-        position: { live: liveAvgPos, db: dbAvgPos, diff: Number((dbAvgPos - liveAvgPos).toFixed(1)) }
+        position: { live: liveAvgPos, db: dbAvgPos, diff: Number((dbAvgPos - liveAvgPos).toFixed(1)) },
+        duplicateDatesCount,
+        missingDatesCount
       },
       auditDays
     }), {

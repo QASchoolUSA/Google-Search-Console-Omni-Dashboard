@@ -133,8 +133,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           `).bind(id, site.site_url, date, row.clicks, row.impressions, ctr, pos).run();
         }
 
-        // 2. Fetch top search queries (fresh 28-day window)
-        const recent28dStart = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        // 2. Fetch top search queries (anchored to the exact latest available GSC date)
+        const latestGscDate = dailyRows.length > 0
+          ? dailyRows[dailyRows.length - 1].keys[0]
+          : endDate;
+        const queryEndDate = latestGscDate;
+        const queryStartDate = new Date(new Date(latestGscDate).getTime() - 27 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
         const queryRes = await fetch(
           `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
           {
@@ -144,8 +149,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              startDate: recent28dStart,
-              endDate,
+              startDate: queryStartDate,
+              endDate: queryEndDate,
               dimensions: ['query'],
               type: 'web',
               dataState: 'all',
@@ -189,8 +194,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              startDate: recent28dStart,
-              endDate,
+              startDate: queryStartDate,
+              endDate: queryEndDate,
               dimensions: ['page'],
               type: 'web',
               dataState: 'all',
