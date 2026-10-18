@@ -12,6 +12,3 @@ directory = "./dist"
 binding = "DB"
 database_name = "gscdata"
 database_id = "1d6a4c10-494c-4484-a1fe-cba6fa970a48"
-
-[vars]
-ENVIRONMENT = "production"
