@@ -225,11 +225,92 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
                 impressions = excluded.impressions,
                 ctr = excluded.ctr,
                 position = excluded.position
-            `).bind(id, site.site_url, page, endDate, row.clicks, row.impressions, ctr, pos).run();
+            `).bind(id, site.site_url, page, queryEndDate, row.clicks, row.impressions, ctr, pos).run();
           }
         }
 
-        // 4. Update site last_synced_at
+        // 4. Fetch device breakdown
+        const deviceRes = await fetch(
+          `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              startDate: queryStartDate,
+              endDate: queryEndDate,
+              dimensions: ['device'],
+              type: 'web',
+              dataState: 'all'
+            })
+          }
+        );
+
+        if (deviceRes.ok) {
+          const deviceData = await deviceRes.json() as { rows?: GSCRow[] };
+          const deviceRows = deviceData.rows || [];
+          await env.DB.prepare('DELETE FROM device_metrics WHERE site_url = ?').bind(site.site_url).run();
+          for (const row of deviceRows) {
+            const dev = row.keys[0];
+            const id = `${site.site_url}_${dev}`;
+            const ctr = Number((row.ctr * 100).toFixed(2));
+            const pos = Number(row.position.toFixed(1));
+            await env.DB.prepare(`
+              INSERT INTO device_metrics (id, site_url, device, date, clicks, impressions, ctr, position)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(site_url, device, date) DO UPDATE SET
+                clicks = excluded.clicks,
+                impressions = excluded.impressions,
+                ctr = excluded.ctr,
+                position = excluded.position
+            `).bind(id, site.site_url, dev, queryEndDate, row.clicks, row.impressions, ctr, pos).run();
+          }
+        }
+
+        // 5. Fetch country breakdown
+        const countryRes = await fetch(
+          `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              startDate: queryStartDate,
+              endDate: queryEndDate,
+              dimensions: ['country'],
+              type: 'web',
+              dataState: 'all',
+              rowLimit: 10
+            })
+          }
+        );
+
+        if (countryRes.ok) {
+          const countryData = await countryRes.json() as { rows?: GSCRow[] };
+          const countryRows = countryData.rows || [];
+          await env.DB.prepare('DELETE FROM country_metrics WHERE site_url = ?').bind(site.site_url).run();
+          for (const row of countryRows) {
+            const cCode = row.keys[0];
+            const id = `${site.site_url}_${cCode}`;
+            const ctr = Number((row.ctr * 100).toFixed(2));
+            const pos = Number(row.position.toFixed(1));
+            await env.DB.prepare(`
+              INSERT INTO country_metrics (id, site_url, country, date, clicks, impressions, ctr, position)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(site_url, country, date) DO UPDATE SET
+                clicks = excluded.clicks,
+                impressions = excluded.impressions,
+                ctr = excluded.ctr,
+                position = excluded.position
+            `).bind(id, site.site_url, cCode, queryEndDate, row.clicks, row.impressions, ctr, pos).run();
+          }
+        }
+
+        // 6. Update site last_synced_at
         await env.DB.prepare('UPDATE properties SET last_synced_at = CURRENT_TIMESTAMP WHERE site_url = ?')
           .bind(site.site_url).run();
 

@@ -1,10 +1,10 @@
 import { Component, onMount, onCleanup, createEffect } from 'solid-js';
 import * as echarts from 'echarts';
 import { Target } from 'lucide-solid';
-import { MockQuery } from '../services/mockData';
+import { QueryMetric } from '../types';
 
 interface StrikingDistanceChartProps {
-  queries: MockQuery[];
+  queries: QueryMetric[];
 }
 
 export const StrikingDistanceChart: Component<StrikingDistanceChartProps> = (props) => {

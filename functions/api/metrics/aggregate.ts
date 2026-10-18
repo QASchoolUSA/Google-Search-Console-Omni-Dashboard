@@ -138,6 +138,48 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       .bind(currentStart, currentEnd)
       .all();
 
+    // Device breakdown
+    const { results: devices } = await env.DB.prepare(`
+      SELECT 
+        dm.device,
+        SUM(dm.clicks) as clicks,
+        SUM(dm.impressions) as impressions
+      FROM device_metrics dm
+      JOIN properties p ON p.site_url = dm.site_url
+      WHERE 1=1 ${categoryFilter}
+      GROUP BY dm.device
+      ORDER BY clicks DESC
+    `).bind(...params).all();
+
+    // Country breakdown
+    const { results: countries } = await env.DB.prepare(`
+      SELECT 
+        cm.country,
+        SUM(cm.clicks) as clicks,
+        SUM(cm.impressions) as impressions
+      FROM country_metrics cm
+      JOIN properties p ON p.site_url = cm.site_url
+      WHERE 1=1 ${categoryFilter}
+      GROUP BY cm.country
+      ORDER BY clicks DESC
+      LIMIT 10
+    `).bind(...params).all();
+
+    // Striking distance queries across monitored sites
+    const { results: strikingQueries } = await env.DB.prepare(`
+      SELECT 
+        qm.query,
+        qm.clicks,
+        qm.impressions,
+        qm.ctr,
+        qm.position
+      FROM query_metrics qm
+      JOIN properties p ON p.site_url = qm.site_url
+      WHERE qm.position >= 8.0 AND qm.position <= 20.0 ${categoryFilter}
+      ORDER BY qm.impressions DESC
+      LIMIT 15
+    `).bind(...params).all();
+
     return new Response(JSON.stringify({
       totalClicks: currentTotal.totalClicks,
       totalImpressions: currentTotal.totalImpressions,
@@ -150,7 +192,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       startDate: currentStart,
       endDate: currentEnd,
       timeline: timeline || [],
-      categoryBreakdown: categoryBreakdown || []
+      categoryBreakdown: categoryBreakdown || [],
+      devices: devices || [],
+      countries: countries || [],
+      strikingQueries: strikingQueries || []
     }), {
       headers: { 'Content-Type': 'application/json' }
     });

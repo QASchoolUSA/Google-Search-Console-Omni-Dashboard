@@ -992,3 +992,77 @@ body {
     justify-content: space-between;
   }
 }
+
+/* Live Auth Connection Banners */
+.auth-required-banner {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 10px 30px -10px rgba(14, 165, 233, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.auth-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.auth-banner-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ready-to-sync-banner {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 8px 24px -8px rgba(16, 185, 129, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Disabled Dashboard Body when Unauthenticated */
+.dashboard-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.dashboard-body.is-unauthenticated-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+  filter: grayscale(0.7) blur(0.5px);
+  user-select: none;
+  cursor: not-allowed;
+}
+
+.dashboard-body.is-unauthenticated-disabled * {
+  cursor: not-allowed !important;
+}
+
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 0.94rem;
+  font-weight: 600;
+}

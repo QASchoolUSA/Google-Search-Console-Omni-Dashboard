@@ -1,10 +1,10 @@
 import { Component, createSignal, onMount, onCleanup, createEffect } from 'solid-js';
 import * as echarts from 'echarts';
 import { TrendingUp } from 'lucide-solid';
-import { MockDailyMetric } from '../services/mockData';
+import { DailyMetric } from '../types';
 
 interface PerformanceChartProps {
-  timeline: MockDailyMetric[];
+  timeline: DailyMetric[];
   title?: string;
   categoryName?: string;
 }

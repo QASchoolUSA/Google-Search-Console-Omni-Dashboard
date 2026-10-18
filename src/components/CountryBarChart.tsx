@@ -4,10 +4,10 @@ import { Globe2 } from 'lucide-solid';
 
 interface CountryItem {
   country: string;
-  flag: string;
+  flag?: string;
   clicks: number;
-  impressions: number;
-  pct: number;
+  impressions?: number;
+  pct?: number;
 }
 
 interface CountryBarChartProps {
@@ -35,7 +35,7 @@ export const CountryBarChart: Component<CountryBarChartProps> = (props) => {
     if (!chartInstance) return;
 
     const items = [...(props.data || [])].reverse(); // Reverse for bottom-to-top horizontal bar
-    const categories = items.map(c => `${c.flag} ${c.country}`);
+    const categories = items.map(c => (c.flag ? `${c.flag} ` : '') + (c.country || 'Unknown').toUpperCase());
     const values = items.map(c => c.clicks);
 
     const option: echarts.EChartsOption = {

@@ -1,9 +1,9 @@
 import { Component, createSignal, For } from 'solid-js';
 import { X, Plus, Trash2, Folder, Check } from 'lucide-solid';
-import { MockCategory } from '../services/mockData';
+import { Category } from '../types';
 
 interface CategoryModalProps {
-  categories: MockCategory[];
+  categories: Category[];
   onClose: () => void;
   onCreateCategory: (name: string, color: string, description: string) => void;
   onDeleteCategory: (id: string) => void;

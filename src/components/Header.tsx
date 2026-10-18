@@ -1,21 +1,17 @@
-import { Component, createSignal } from 'solid-js';
+import { Component } from 'solid-js';
 import { 
-  Sparkles, 
   RefreshCw, 
   Globe, 
   LogIn, 
   LogOut, 
-  CheckCircle2, 
-  Zap,
-  ShieldCheck
+  ShieldCheck,
+  Radio
 } from 'lucide-solid';
-import { UserAuthStatus } from '../services/api';
+import { UserAuthStatus } from '../types';
 
 interface HeaderProps {
   days: number;
   onSelectDays: (days: number) => void;
-  isDemo: boolean;
-  onToggleDemo: (val: boolean) => void;
   isSyncing: boolean;
   onSync: () => void;
   authStatus: UserAuthStatus;
@@ -51,38 +47,49 @@ export const Header: Component<HeaderProps> = (props) => {
           <button 
             class={`date-btn ${props.days === 7 ? 'active' : ''}`}
             onClick={() => props.onSelectDays(7)}
+            disabled={!props.authStatus.authenticated}
           >
             7 Days
           </button>
           <button 
             class={`date-btn ${props.days === 28 ? 'active' : ''}`}
             onClick={() => props.onSelectDays(28)}
+            disabled={!props.authStatus.authenticated}
           >
             28 Days
           </button>
           <button 
             class={`date-btn ${props.days === 90 ? 'active' : ''}`}
             onClick={() => props.onSelectDays(90)}
+            disabled={!props.authStatus.authenticated}
           >
             3 Months
           </button>
         </div>
 
-        {/* Demo Mode Toggle */}
-        <button 
-          class={`btn ${props.isDemo ? 'btn-demo' : 'btn-outline'}`}
-          onClick={() => props.onToggleDemo(!props.isDemo)}
-          title="Toggle between Live GSC API and Demo Benchmark Mode"
+        {/* Live Status Indicator */}
+        <div 
+          class="engine-pill" 
+          style={{ 
+            padding: '6px 12px',
+            background: props.authStatus.authenticated ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+            color: props.authStatus.authenticated ? '#34d399' : 'var(--text-muted)',
+            border: `1px solid ${props.authStatus.authenticated ? 'rgba(16, 185, 129, 0.25)' : 'var(--border-subtle)'}`,
+            display: 'flex',
+            "align-items": 'center',
+            gap: '6px'
+          }}
         >
-          {props.isDemo ? <Sparkles size={15} /> : <Zap size={15} />}
-          <span>{props.isDemo ? 'Demo Mode Active' : 'Live GSC Mode'}</span>
-        </button>
+          <Radio size={13} class={props.authStatus.authenticated ? 'pulse' : ''} />
+          <span>{props.authStatus.authenticated ? 'Live GSC Connected' : 'GSC Disconnected'}</span>
+        </div>
 
         {/* On-Demand Sync Button */}
         <button 
           class="btn btn-primary"
           onClick={props.onSync}
-          disabled={props.isSyncing}
+          disabled={props.isSyncing || !props.authStatus.authenticated}
+          title={!props.authStatus.authenticated ? 'Connect Google Search Console first to sync' : 'Sync verified properties from GSC'}
         >
           <RefreshCw 
             size={15} 
@@ -100,7 +107,7 @@ export const Header: Component<HeaderProps> = (props) => {
               "align-items": 'center', 
               gap: '6px', 
               background: 'rgba(255,255,255,0.06)', 
-              padding: '4px 10px', 
+              padding: '5px 12px', 
               "border-radius": 'var(--radius-full)',
               "font-size": '0.78rem'
             }}>

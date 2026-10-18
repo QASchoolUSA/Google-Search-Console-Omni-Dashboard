@@ -15,7 +15,7 @@ import {
 import { api } from '../services/api';
 import { PerformanceChart } from './PerformanceChart';
 import { DataAuditModal } from './DataAuditModal';
-import { MockQuery, MockPage } from '../services/mockData';
+import { QueryMetric, PageMetric } from '../types';
 
 interface SiteDetailModalProps {
   siteUrl: string;
@@ -34,7 +34,7 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
   );
 
   const filteredQueries = () => {
-    const list: MockQuery[] = siteData()?.topQueries || [];
+    const list: QueryMetric[] = siteData()?.topQueries || [];
     const term = searchTerm().toLowerCase().trim();
     const filter = queryFilter();
 

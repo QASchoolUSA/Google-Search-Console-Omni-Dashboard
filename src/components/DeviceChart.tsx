@@ -5,8 +5,8 @@ import { Smartphone } from 'lucide-solid';
 interface DeviceItem {
   device: string;
   clicks: number;
-  impressions: number;
-  percentage: number;
+  impressions?: number;
+  percentage?: number;
 }
 
 interface DeviceChartProps {

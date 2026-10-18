@@ -7,10 +7,10 @@ import {
   Layers, 
   SlidersHorizontal 
 } from 'lucide-solid';
-import { MockCategory } from '../services/mockData';
+import { Category } from '../types';
 
 interface CategoryFilterProps {
-  categories: MockCategory[];
+  categories: Category[];
   selectedCategory: string;
   onSelectCategory: (id: string) => void;
   onOpenCategoryModal: () => void;

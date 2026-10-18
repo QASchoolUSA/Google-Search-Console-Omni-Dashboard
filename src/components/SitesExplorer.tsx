@@ -1,4 +1,4 @@
-import { Component, For } from 'solid-js';
+import { Component, For, Show } from 'solid-js';
 import { 
   Globe, 
   ExternalLink, 
@@ -9,11 +9,11 @@ import {
   TrendingUp,
   Tag
 } from 'lucide-solid';
-import { MockProperty, MockCategory } from '../services/mockData';
+import { SiteProperty, Category } from '../types';
 
 interface SitesExplorerProps {
-  properties: MockProperty[];
-  categories: MockCategory[];
+  properties: SiteProperty[];
+  categories: Category[];
   viewMode: 'grid' | 'table';
   onSelectSite: (siteUrl: string) => void;
   onAssignCategory: (siteUrl: string, categoryId: string | null) => void;
@@ -21,7 +21,7 @@ interface SitesExplorerProps {
 }
 
 export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
-  const formatNumber = (n: number) => {
+  const formatNumber = (n?: number) => {
     if (!n) return '0';
     if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
     if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
@@ -41,6 +41,27 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
         </div>
       </div>
 
+      <Show when={props.properties.length === 0}>
+        <div style={{
+          background: 'var(--bg-card)',
+          border: '1px dashed var(--border-subtle)',
+          padding: '48px 24px',
+          "border-radius": 'var(--radius-lg)',
+          "text-align": 'center',
+          display: 'flex',
+          "flex-direction": 'column',
+          "align-items": 'center',
+          gap: '12px'
+        }}>
+          <Globe size={36} color="var(--text-muted)" />
+          <h3 style={{ "font-size": '1.05rem', color: '#fff' }}>No Properties Synced Yet</h3>
+          <p style={{ "font-size": '0.82rem', color: 'var(--text-secondary)', "max-width": '420px', "line-height": 1.5 }}>
+            Connect your Google account and click <strong>Sync All</strong> in the header to discover and synchronize your verified Google Search Console properties.
+          </p>
+        </div>
+      </Show>
+
+      <Show when={props.properties.length > 0}>
       {props.viewMode === 'grid' ? (
         <div class="sites-grid">
           <For each={props.properties}>
@@ -261,6 +282,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
           </table>
         </div>
       )}
+      </Show>
     </div>
   );
 };
