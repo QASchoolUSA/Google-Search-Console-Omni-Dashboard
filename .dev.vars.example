@@ -1,0 +1,4 @@
+# Copy this file to .dev.vars for local Cloudflare Pages Functions testing
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+SESSION_SECRET=super-secret-random-key-32-chars-long

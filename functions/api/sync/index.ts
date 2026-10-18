@@ -1,0 +1,151 @@
+import { Env } from '../../types';
+import { getSession } from '../../utils/google';
+
+interface GSCRow {
+  keys: string[];
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  const session = await getSession(request, env);
+  if (!session) {
+    return new Response(JSON.stringify({ error: 'Unauthorized. Please log in.' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  try {
+    const body = await request.json().catch(() => ({})) as { site_url?: string; days?: number };
+    const days = body.days || 30;
+
+    // Determine target sites
+    let sitesToSync: { site_url: string }[] = [];
+    if (body.site_url) {
+      sitesToSync = [{ site_url: body.site_url }];
+    } else {
+      const { results } = await env.DB.prepare('SELECT site_url FROM properties').all();
+      sitesToSync = (results || []) as { site_url: string }[];
+    }
+
+    if (sitesToSync.length === 0) {
+      return new Response(JSON.stringify({ message: 'No properties to sync. Please import properties first.' }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    let totalSyncedSites = 0;
+    const errors: { site: string; error: string }[] = [];
+
+    for (const site of sitesToSync) {
+      try {
+        const encodedSite = encodeURIComponent(site.site_url);
+
+        // 1. Fetch daily metrics
+        const dailyRes = await fetch(
+          `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              startDate,
+              endDate,
+              dimensions: ['date'],
+              rowLimit: 1000
+            })
+          }
+        );
+
+        if (!dailyRes.ok) {
+          const errText = await dailyRes.text();
+          errors.push({ site: site.site_url, error: errText });
+          continue;
+        }
+
+        const dailyData = await dailyRes.json() as { rows?: GSCRow[] };
+        const dailyRows = dailyData.rows || [];
+
+        // Save daily metrics to D1 in batch
+        for (const row of dailyRows) {
+          const date = row.keys[0];
+          const id = `${site.site_url}_${date}`;
+          await env.DB.prepare(`
+            INSERT INTO daily_metrics (id, site_url, date, clicks, impressions, ctr, position)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(site_url, date) DO UPDATE SET
+              clicks = excluded.clicks,
+              impressions = excluded.impressions,
+              ctr = excluded.ctr,
+              position = excluded.position
+          `).bind(id, site.site_url, date, row.clicks, row.impressions, row.ctr * 100, row.position).run();
+        }
+
+        // 2. Fetch top queries
+        const queryRes = await fetch(
+          `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              startDate,
+              endDate,
+              dimensions: ['query'],
+              rowLimit: 100
+            })
+          }
+        );
+
+        if (queryRes.ok) {
+          const queryData = await queryRes.json() as { rows?: GSCRow[] };
+          const queryRows = queryData.rows || [];
+          for (const row of queryRows) {
+            const q = row.keys[0];
+            const id = `${site.site_url}_${q}_${endDate}`;
+            await env.DB.prepare(`
+              INSERT INTO query_metrics (id, site_url, query, date, clicks, impressions, ctr, position)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(site_url, query, date) DO UPDATE SET
+                clicks = excluded.clicks,
+                impressions = excluded.impressions,
+                ctr = excluded.ctr,
+                position = excluded.position
+            `).bind(id, site.site_url, q, endDate, row.clicks, row.impressions, row.ctr * 100, row.position).run();
+          }
+        }
+
+        // Update site last_synced_at
+        await env.DB.prepare('UPDATE properties SET last_synced_at = CURRENT_TIMESTAMP WHERE site_url = ?')
+          .bind(site.site_url).run();
+
+        totalSyncedSites++;
+      } catch (err: any) {
+        errors.push({ site: site.site_url, error: err.message });
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      syncedSitesCount: totalSyncedSites,
+      errors: errors.length > 0 ? errors : undefined
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+};

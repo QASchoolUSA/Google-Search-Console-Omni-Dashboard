@@ -1,0 +1,17 @@
+name = "gsc-dashboard"
+compatibility_date = "2024-04-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+# Cloudflare D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "gsc-database"
+database_id = "local-gsc-db-id"
+
+[vars]
+ENVIRONMENT = "production"
+# OAuth credentials can be set via Cloudflare Pages environment variables dashboard or .dev.vars
+# GOOGLE_CLIENT_ID = ""
+# GOOGLE_CLIENT_SECRET = ""
+# SESSION_SECRET = ""
