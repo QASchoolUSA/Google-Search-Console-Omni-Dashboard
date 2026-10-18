@@ -330,7 +330,10 @@ class ApiService {
         const res = await fetch('/api/sync', { method: 'POST' });
         if (res.ok) {
           const data = await res.json();
-          return { success: true, message: `Synced ${data.syncedSitesCount || 0} properties from Google Search Console.` };
+          return {
+            success: data.success !== false,
+            message: data.message || `Successfully synced ${data.syncedSitesCount || 0} properties from Google Search Console.`
+          };
         }
       } catch (e) {
         console.error('Sync failed', e);

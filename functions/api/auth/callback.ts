@@ -52,6 +52,31 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       expiresAt
     ).run();
 
+    // Auto-discover and import verified GSC properties into D1
+    try {
+      const sitesRes = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` }
+      });
+      if (sitesRes.ok) {
+        const sitesData = await sitesRes.json() as { siteEntry?: { siteUrl: string; permissionLevel: string }[] };
+        const sites = sitesData.siteEntry || [];
+        for (const s of sites) {
+          const id = crypto.randomUUID();
+          const displayName = s.siteUrl
+            .replace(/^https?:\/\//, '')
+            .replace(/^sc-domain:/, '')
+            .replace(/\/$/, '');
+          await env.DB.prepare(`
+            INSERT INTO properties (id, site_url, display_name, permission_level)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(site_url) DO UPDATE SET permission_level = excluded.permission_level
+          `).bind(id, s.siteUrl, displayName, s.permissionLevel).run();
+        }
+      }
+    } catch (e) {
+      console.warn('Initial GSC property import error:', e);
+    }
+
     // 30 days cookie
     const isHttps = url.protocol === 'https:';
     const cookieFlags = [
