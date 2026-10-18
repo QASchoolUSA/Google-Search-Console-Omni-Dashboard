@@ -10,8 +10,8 @@ directory = "./dist"
 # Cloudflare D1 Database binding
 [[d1_databases]]
 binding = "DB"
-database_name = "gsc-database"
-database_id = "local-gsc-db-id"
+database_name = "gscdata"
+database_id = "1d6a4c10-494c-4484-a1fe-cba6fa970a48"
 
 [vars]
 ENVIRONMENT = "production"
