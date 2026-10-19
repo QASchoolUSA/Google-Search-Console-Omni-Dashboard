@@ -1,4 +1,5 @@
-import { Env, DailyMetric } from '../../types';
+import { Env, DailyMetric, QueryMetric } from '../../types';
+import { computeGenAiMetrics } from '../../utils/genai';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   try {
@@ -180,6 +181,36 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       LIMIT 15
     `).bind(...params).all();
 
+    // Query top queries for Generative AI analysis
+    const { results: allQueries } = await env.DB.prepare(`
+      SELECT 
+        qm.query,
+        SUM(qm.clicks) as clicks,
+        SUM(qm.impressions) as impressions,
+        CASE 
+          WHEN SUM(qm.impressions) > 0 
+          THEN ROUND(CAST(SUM(qm.clicks) AS REAL) / CAST(SUM(qm.impressions) AS REAL) * 100, 2)
+          ELSE 0.0 
+        END as ctr,
+        CASE 
+          WHEN SUM(qm.impressions) > 0 
+          THEN ROUND(CAST(SUM(qm.position * qm.impressions) AS REAL) / CAST(SUM(qm.impressions) AS REAL), 1)
+          ELSE 0.0 
+        END as position
+      FROM query_metrics qm
+      JOIN properties p ON p.site_url = qm.site_url
+      WHERE 1=1 ${categoryFilter}
+      GROUP BY qm.query
+      ORDER BY clicks DESC
+      LIMIT 250
+    `).bind(...params).all<DailyMetric>();
+
+    const aiMetrics = computeGenAiMetrics(
+      (allQueries as any) || [],
+      currentTotal.totalClicks,
+      currentTotal.totalImpressions
+    );
+
     return new Response(JSON.stringify({
       totalClicks: currentTotal.totalClicks,
       totalImpressions: currentTotal.totalImpressions,
@@ -195,7 +226,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       categoryBreakdown: categoryBreakdown || [],
       devices: devices || [],
       countries: countries || [],
-      strikingQueries: strikingQueries || []
+      strikingQueries: strikingQueries || [],
+      aiMetrics
     }), {
       headers: { 'Content-Type': 'application/json' }
     });

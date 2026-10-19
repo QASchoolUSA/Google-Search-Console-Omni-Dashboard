@@ -15,6 +15,7 @@ import { CategoryDonutChart } from './components/CategoryDonutChart';
 import { DeviceChart } from './components/DeviceChart';
 import { StrikingDistanceChart } from './components/StrikingDistanceChart';
 import { CountryBarChart } from './components/CountryBarChart';
+import { GenAiMetricsWidget } from './components/GenAiMetricsWidget';
 import { SitesExplorer } from './components/SitesExplorer';
 import { SiteDetailModal } from './components/SiteDetailModal';
 import { CategoryModal } from './components/CategoryModal';
@@ -283,6 +284,9 @@ export const App: Component = () => {
           <StrikingDistanceChart queries={aggregateData()?.strikingQueries || []} />
           <CountryBarChart data={aggregateData()?.countries || []} />
         </div>
+
+        {/* Generative AI & AI Overviews Analytics Widget */}
+        <GenAiMetricsWidget data={aggregateData()?.aiMetrics} />
 
         {/* Monitored Properties Portfolio Explorer (Grid / Table) */}
         <SitesExplorer

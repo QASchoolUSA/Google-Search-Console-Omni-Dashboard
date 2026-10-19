@@ -6,7 +6,8 @@ import {
   PageMetric, 
   UserAuthStatus, 
   AggregateData, 
-  AuditResult 
+  AuditResult,
+  SiteDetailsResponse
 } from '../types';
 
 export * from '../types';
@@ -138,7 +139,7 @@ class ApiService {
     return emptyResult;
   }
 
-  async getSiteDetails(siteUrl: string, days: number = 28) {
+  async getSiteDetails(siteUrl: string, days: number = 28): Promise<SiteDetailsResponse | null> {
     try {
       const res = await fetch(`/api/metrics/${encodeURIComponent(siteUrl)}?days=${days}`);
       if (res.ok) {

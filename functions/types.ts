@@ -52,12 +52,40 @@ export interface DailyMetric {
   position: number;
 }
 
+export type GenAiIntentType = 'informational' | 'how_to' | 'comparative' | 'conversational' | 'standard';
+
 export interface QueryMetric {
   query: string;
   clicks: number;
   impressions: number;
   ctr: number;
   position: number;
+  opportunity?: 'striking' | 'top3' | 'high_imp';
+  aiIntent?: GenAiIntentType;
+  citationLikelihood?: 'prime' | 'high' | 'opportunity' | 'low';
+}
+
+export interface GenAiQueryMetric extends QueryMetric {
+  aiIntent: GenAiIntentType;
+  citationLikelihood: 'prime' | 'high' | 'opportunity' | 'low';
+}
+
+export interface GenerativeAiMetrics {
+  aiClicks: number;
+  aiImpressions: number;
+  aiCtr: number;
+  aiAvgPosition: number;
+  aiShareOfClicks: number;
+  aiShareOfImpressions: number;
+  readinessScore: number;
+  intentBreakdown: {
+    intent: GenAiIntentType;
+    label: string;
+    clicks: number;
+    impressions: number;
+    queryCount: number;
+  }[];
+  topAiQueries: GenAiQueryMetric[];
 }
 
 export interface PageMetric {
@@ -81,4 +109,5 @@ export interface AggregateSummary {
   deviceBreakdown?: { device: string; clicks: number; impressions: number }[];
   countryBreakdown?: { country: string; clicks: number; impressions: number }[];
   categoryBreakdown?: { categoryId: string; name: string; color: string; clicks: number; impressions: number }[];
+  aiMetrics?: GenerativeAiMetrics;
 }

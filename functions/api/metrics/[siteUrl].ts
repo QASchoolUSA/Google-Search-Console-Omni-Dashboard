@@ -1,4 +1,5 @@
 import { Env, DailyMetric, QueryMetric, PageMetric } from '../../types';
+import { computeGenAiMetrics, classifyQueryAiIntent, calculateCitationLikelihood } from '../../utils/genai';
 
 export const onRequestGet: PagesFunction<Env> = async ({ params, request, env }) => {
   try {
@@ -96,7 +97,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     `).bind(siteUrl, currentStart, currentEnd).all<DailyMetric>();
 
     // Top queries (clean deduplicated snapshot)
-    const { results: topQueries } = await env.DB.prepare(`
+    const { results: rawTopQueries } = await env.DB.prepare(`
       SELECT query, clicks, impressions, ctr, position
       FROM query_metrics
       WHERE site_url = ?
@@ -104,13 +105,25 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
       LIMIT 100
     `).bind(siteUrl).all<QueryMetric>();
 
+    const topQueries: QueryMetric[] = (rawTopQueries || []).map(q => ({
+      ...q,
+      aiIntent: classifyQueryAiIntent(q.query),
+      citationLikelihood: calculateCitationLikelihood(q.position)
+    }));
+
+    const aiMetrics = computeGenAiMetrics(
+      topQueries,
+      currentTotal.totalClicks,
+      currentTotal.totalImpressions
+    );
+
     // Top pages
     const { results: topPages } = await env.DB.prepare(`
       SELECT page, clicks, impressions, ctr, position
       FROM page_metrics
       WHERE site_url = ?
       ORDER BY clicks DESC, impressions DESC
-      LIMIT 50
+      LIMIT 100
     `).bind(siteUrl).all<PageMetric>();
 
     return new Response(JSON.stringify({
@@ -127,7 +140,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
       endDate: currentEnd,
       timeline: timeline || [],
       topQueries: topQueries || [],
-      topPages: topPages || []
+      topPages: topPages || [],
+      aiMetrics
     }), {
       headers: { 'Content-Type': 'application/json' }
     });

@@ -1,15 +1,19 @@
-import { Component, For, Show } from 'solid-js';
+import { Component, For, Show, createSignal } from 'solid-js';
 import { 
   Globe, 
-  ExternalLink, 
   Star, 
   ChevronRight, 
   Clock, 
-  ArrowUpRight,
   TrendingUp,
-  Tag
+  Tag,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown
 } from 'lucide-solid';
 import { SiteProperty, Category } from '../types';
+
+type SiteSortField = 'display_name' | 'category_name' | 'total_clicks_28d' | 'total_impressions_28d' | 'avg_ctr_28d' | 'avg_position_28d' | 'last_synced_at';
+type SortDirection = 'asc' | 'desc';
 
 interface SitesExplorerProps {
   properties: SiteProperty[];
@@ -21,6 +25,64 @@ interface SitesExplorerProps {
 }
 
 export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
+  const [sortField, setSortField] = createSignal<SiteSortField>('total_clicks_28d');
+  const [sortDirection, setSortDirection] = createSignal<SortDirection>('desc');
+
+  const handleSort = (field: SiteSortField) => {
+    if (sortField() === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      // For alphabetical & position (rank 1 is best), start with ascending; for clicks/impressions/CTR, descending
+      setSortDirection(field === 'display_name' || field === 'category_name' || field === 'avg_position_28d' ? 'asc' : 'desc');
+    }
+  };
+
+  const sortedProperties = () => {
+    const list = [...props.properties];
+    const field = sortField();
+    const dir = sortDirection();
+    const mult = dir === 'asc' ? 1 : -1;
+
+    return list.sort((a, b) => {
+      let valA: any = a[field as keyof SiteProperty];
+      let valB: any = b[field as keyof SiteProperty];
+
+      if (field === 'display_name') {
+        valA = a.display_name || a.site_url || '';
+        valB = b.display_name || b.site_url || '';
+        return mult * valA.localeCompare(valB);
+      }
+
+      if (field === 'category_name') {
+        valA = a.category_name || '';
+        valB = b.category_name || '';
+        return mult * valA.localeCompare(valB);
+      }
+
+      if (field === 'last_synced_at') {
+        const timeA = a.last_synced_at ? new Date(a.last_synced_at).getTime() : 0;
+        const timeB = b.last_synced_at ? new Date(b.last_synced_at).getTime() : 0;
+        return mult * (timeA - timeB);
+      }
+
+      valA = Number(valA ?? 0);
+      valB = Number(valB ?? 0);
+      return mult * (valA - valB);
+    });
+  };
+
+  const renderSortIcon = (field: SiteSortField) => {
+    if (sortField() !== field) {
+      return <ArrowUpDown size={12} class="sort-icon-inactive" />;
+    }
+    return sortDirection() === 'asc' ? (
+      <ChevronUp size={13} class="sort-icon-active" color="var(--color-primary)" />
+    ) : (
+      <ChevronDown size={13} class="sort-icon-active" color="var(--color-primary)" />
+    );
+  };
+
   const formatNumber = (n?: number) => {
     if (!n) return '0';
     if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
@@ -64,7 +126,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
       <Show when={props.properties.length > 0}>
       {props.viewMode === 'grid' ? (
         <div class="sites-grid">
-          <For each={props.properties}>
+          <For each={sortedProperties()}>
             {(site) => (
               <div 
                 class="site-card"
@@ -178,19 +240,54 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
           <table class="custom-table">
             <thead>
               <tr>
-                <th>Property / Domain</th>
-                <th>Category</th>
-                <th>Clicks (28d)</th>
-                <th>Impressions (28d)</th>
-                <th>CTR</th>
-                <th>Avg Pos</th>
+                <th class="sortable-th" onClick={() => handleSort('display_name')} title="Click to sort by domain">
+                  <div class="th-content">
+                    <span>Property / Domain</span>
+                    {renderSortIcon('display_name')}
+                  </div>
+                </th>
+                <th class="sortable-th" onClick={() => handleSort('category_name')} title="Click to sort by category">
+                  <div class="th-content">
+                    <span>Category</span>
+                    {renderSortIcon('category_name')}
+                  </div>
+                </th>
+                <th class="sortable-th" onClick={() => handleSort('total_clicks_28d')} title="Click to sort by clicks">
+                  <div class="th-content">
+                    <span>Clicks (28d)</span>
+                    {renderSortIcon('total_clicks_28d')}
+                  </div>
+                </th>
+                <th class="sortable-th" onClick={() => handleSort('total_impressions_28d')} title="Click to sort by impressions">
+                  <div class="th-content">
+                    <span>Impressions (28d)</span>
+                    {renderSortIcon('total_impressions_28d')}
+                  </div>
+                </th>
+                <th class="sortable-th" onClick={() => handleSort('avg_ctr_28d')} title="Click to sort by CTR">
+                  <div class="th-content">
+                    <span>CTR</span>
+                    {renderSortIcon('avg_ctr_28d')}
+                  </div>
+                </th>
+                <th class="sortable-th" onClick={() => handleSort('avg_position_28d')} title="Click to sort by average position">
+                  <div class="th-content">
+                    <span>Avg Pos</span>
+                    {renderSortIcon('avg_position_28d')}
+                  </div>
+                </th>
                 <th>Status</th>
-                <th>Last Synced</th>
+                <th class="sortable-th" onClick={() => handleSort('last_synced_at')} title="Click to sort by last sync timestamp">
+                  <div class="th-content">
+                    <span>Last Synced</span>
+                    {renderSortIcon('last_synced_at')}
+                  </div>
+                </th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              <For each={props.properties}>
+              <For each={sortedProperties()}>
                 {(site) => (
                   <tr 
                     style={{ cursor: 'pointer' }}

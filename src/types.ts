@@ -33,6 +33,8 @@ export interface DailyMetric {
   position: number;
 }
 
+export type GenAiIntentType = 'informational' | 'how_to' | 'comparative' | 'conversational' | 'standard';
+
 export interface QueryMetric {
   query: string;
   clicks: number;
@@ -40,6 +42,31 @@ export interface QueryMetric {
   ctr: number;
   position: number;
   opportunity?: 'striking' | 'top3' | 'high_imp';
+  aiIntent?: GenAiIntentType;
+  citationLikelihood?: 'prime' | 'high' | 'opportunity' | 'low';
+}
+
+export interface GenAiQueryMetric extends QueryMetric {
+  aiIntent: GenAiIntentType;
+  citationLikelihood: 'prime' | 'high' | 'opportunity' | 'low';
+}
+
+export interface GenerativeAiMetrics {
+  aiClicks: number;
+  aiImpressions: number;
+  aiCtr: number;
+  aiAvgPosition: number;
+  aiShareOfClicks: number;
+  aiShareOfImpressions: number;
+  readinessScore: number;
+  intentBreakdown: {
+    intent: GenAiIntentType;
+    label: string;
+    clicks: number;
+    impressions: number;
+    queryCount: number;
+  }[];
+  topAiQueries: GenAiQueryMetric[];
 }
 
 export interface PageMetric {
@@ -96,6 +123,7 @@ export interface AggregateData {
   devices?: DeviceMetric[];
   countries?: CountryMetric[];
   strikingQueries?: QueryMetric[];
+  aiMetrics?: GenerativeAiMetrics;
 }
 
 export interface AuditResult {
@@ -120,4 +148,22 @@ export interface AuditResult {
     impressionsDiff: number;
     isPerfectMatch: boolean;
   }[];
+}
+
+export interface SiteDetailsResponse {
+  property: SiteProperty;
+  totalClicks: number;
+  totalImpressions: number;
+  avgCtr: number;
+  avgPosition: number;
+  clicksChange: number;
+  impressionsChange: number;
+  ctrChange: number;
+  positionChange: number;
+  startDate: string;
+  endDate: string;
+  timeline: DailyMetric[];
+  topQueries: QueryMetric[];
+  topPages: PageMetric[];
+  aiMetrics?: GenerativeAiMetrics;
 }
