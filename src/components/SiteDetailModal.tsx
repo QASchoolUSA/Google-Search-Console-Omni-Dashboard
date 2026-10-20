@@ -15,6 +15,8 @@ import {
 } from 'lucide-solid';
 import { api } from '../services/api';
 import { PerformanceChart } from './PerformanceChart';
+import { IndexedPagesChart } from './IndexedPagesChart';
+import { IndexedPagesWidget } from './IndexedPagesWidget';
 import { DataAuditModal } from './DataAuditModal';
 import { QueryMetric, PageMetric, GenAiQueryMetric, GenAiIntentType } from '../types';
 
@@ -258,6 +260,17 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
               timeline={siteData()?.timeline || []} 
               title="28-Day Search Traffic Trend"
             />
+          )}
+
+          {/* Indexed pages tracking + multi-window trends */}
+          {siteData()?.indexStats && (
+            <div class="index-detail-grid">
+              <IndexedPagesWidget stats={siteData()?.indexStats} />
+              <IndexedPagesChart
+                timeline={siteData()?.indexStats?.timeline || []}
+                title="Indexed Pages Over Time"
+              />
+            </div>
           )}
 
           {/* Sub Navigation Tabs */}

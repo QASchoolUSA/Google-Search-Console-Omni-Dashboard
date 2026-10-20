@@ -13,7 +13,7 @@
     "d1:migrate:local": "wrangler d1 execute gsc-database --local --file=schema.sql",
     "d1:migrate:remote": "wrangler d1 execute gsc-database --remote --file=schema.sql",
     "lint": "oxlint",
-    "test": "npx tsx test/parity_math.test.ts && npx tsx test/integrity.test.ts && npx tsx test/genai.test.ts"
+    "test": "npx tsx test/parity_math.test.ts && npx tsx test/integrity.test.ts && npx tsx test/genai.test.ts && npx tsx test/indexing.test.ts"
   },
   "dependencies": {
     "echarts": "^6.1.0",

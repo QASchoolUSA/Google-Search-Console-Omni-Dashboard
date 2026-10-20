@@ -1,5 +1,10 @@
 import { Env, DailyMetric, QueryMetric, PageMetric } from '../../types';
 import { computeGenAiMetrics, classifyQueryAiIntent, calculateCitationLikelihood } from '../../utils/genai';
+import {
+  INDEX_WINDOW_DAYS,
+  IndexSnapshotRow,
+  buildSiteIndexStats
+} from '../../utils/indexing';
 
 export const onRequestGet: PagesFunction<Env> = async ({ params, request, env }) => {
   try {
@@ -126,6 +131,34 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
       LIMIT 100
     `).bind(siteUrl).all<PageMetric>();
 
+    // Indexed pages (unique URLs with impressions) + multi-window trends
+    let indexStats = buildSiteIndexStats([], INDEX_WINDOW_DAYS);
+    try {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS index_snapshots (
+          id TEXT PRIMARY KEY,
+          site_url TEXT NOT NULL,
+          date TEXT NOT NULL,
+          page_count INTEGER NOT NULL DEFAULT 0,
+          window_days INTEGER NOT NULL DEFAULT 28,
+          is_truncated INTEGER NOT NULL DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(site_url, date, window_days)
+        )
+      `).run();
+
+      const { results: indexSnaps } = await env.DB.prepare(`
+        SELECT date, page_count, window_days, is_truncated
+        FROM index_snapshots
+        WHERE site_url = ? AND window_days = ?
+        ORDER BY date ASC
+      `).bind(siteUrl, INDEX_WINDOW_DAYS).all<IndexSnapshotRow>();
+
+      indexStats = buildSiteIndexStats(indexSnaps || [], INDEX_WINDOW_DAYS);
+    } catch (indexErr) {
+      console.warn('Indexed pages lookup failed', indexErr);
+    }
+
     return new Response(JSON.stringify({
       property,
       totalClicks: currentTotal.totalClicks,
@@ -141,7 +174,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
       timeline: timeline || [],
       topQueries: topQueries || [],
       topPages: topPages || [],
-      aiMetrics
+      aiMetrics,
+      indexStats
     }), {
       headers: { 'Content-Type': 'application/json' }
     });

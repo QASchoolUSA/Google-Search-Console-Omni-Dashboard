@@ -288,6 +288,26 @@ export const App: Component = () => {
         {/* Generative AI & AI Overviews Analytics Widget */}
         <GenAiMetricsWidget data={aggregateData()?.aiMetrics} />
 
+        {/* Portfolio indexed-pages rollup */}
+        <Show when={filteredProperties().some((p) => (p.indexed_pages || 0) > 0)}>
+          <div class="indexed-portfolio-bar">
+            <div>
+              <div class="indexed-portfolio-label">Portfolio Indexed Pages</div>
+              <div class="indexed-portfolio-value">
+                {filteredProperties()
+                  .reduce((acc, p) => acc + (p.indexed_pages || 0), 0)
+                  .toLocaleString()}
+              </div>
+              <div class="indexed-portfolio-hint">
+                Sum of unique URLs with search impressions across visible properties (28d window). Open a site for 3/7/14/30/60-day trends.
+              </div>
+            </div>
+            <div class="indexed-portfolio-sites">
+              {filteredProperties().filter((p) => (p.indexed_pages || 0) > 0).length} sites tracked
+            </div>
+          </div>
+        </Show>
+
         {/* Monitored Properties Portfolio Explorer (Grid / Table) */}
         <SitesExplorer
           properties={filteredProperties()}
