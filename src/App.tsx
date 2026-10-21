@@ -32,6 +32,7 @@ export const App: Component = () => {
   const [viewMode, setViewMode] = createSignal<'grid' | 'table'>('grid');
   
   const [isSyncing, setIsSyncing] = createSignal<boolean>(false);
+  const [syncProgress, setSyncProgress] = createSignal<string>('');
   const [toastMessage, setToastMessage] = createSignal<string>('');
 
   const [categories, setCategories] = createSignal<Category[]>([]);
@@ -102,8 +103,21 @@ export const App: Component = () => {
       return;
     }
     setIsSyncing(true);
-    const res = await api.syncAll();
+    setSyncProgress('Discovering...');
+    const res = await api.syncProgressive((current, total, siteName) => {
+      setSyncProgress(`${current}/${total}: ${siteName.replace(/^https?:\/\//, '').replace(/\/$/, '')}`);
+    });
     setIsSyncing(false);
+    setSyncProgress('');
+    showToast(res.message);
+    loadData();
+  };
+
+  const handleSyncSite = async (siteUrl: string) => {
+    if (!authStatus().authenticated) return;
+    const clean = siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    showToast(`Syncing ${clean}...`);
+    const res = await api.syncSite(siteUrl);
     showToast(res.message);
     loadData();
   };
@@ -198,6 +212,7 @@ export const App: Component = () => {
         days={days()}
         onSelectDays={setDays}
         isSyncing={isSyncing()}
+        syncProgress={syncProgress()}
         onSync={handleSync}
         authStatus={authStatus()}
         onLogout={handleLogout}
@@ -327,6 +342,7 @@ export const App: Component = () => {
           onSelectSite={(url) => setSelectedSiteUrl(url)}
           onAssignCategory={handleAssignCategory}
           onToggleFavorite={handleToggleFavorite}
+          onSyncSite={handleSyncSite}
         />
       </div>
 
@@ -335,6 +351,7 @@ export const App: Component = () => {
         <SiteDetailModal
           siteUrl={selectedSiteUrl()!}
           onClose={() => setSelectedSiteUrl(null)}
+          onSyncSite={handleSyncSite}
         />
       </Show>
 

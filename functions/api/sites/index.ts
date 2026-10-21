@@ -32,13 +32,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       await env.DB.prepare('ALTER TABLE index_snapshots ADD COLUMN total_pages INTEGER DEFAULT 0').run();
     } catch {}
 
-    // Find latest available date in database to anchor 28d window accurately
-    const maxRow = await env.DB.prepare('SELECT MAX(date) as maxDate FROM daily_metrics').first<{ maxDate: string | null }>();
-    const anchorDate = maxRow?.maxDate ? new Date(maxRow.maxDate) : new Date();
-
-    const currentEnd = anchorDate.toISOString().split('T')[0];
-    const currentStart = new Date(anchorDate.getTime() - 27 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
+    // Fetch all properties with per-site 28-day window performance metrics
+    // Anchored to each site's own latest available date so no site's data is dropped
     const { results } = await env.DB.prepare(`
       SELECT 
         p.id,
@@ -51,37 +46,49 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         COALESCE(p.total_pages, 0) as total_pages,
         c.name as category_name,
         c.color as category_color,
-        COALESCE(SUM(d.clicks), 0) as total_clicks_28d,
-        COALESCE(SUM(d.impressions), 0) as total_impressions_28d,
-        CASE 
-          WHEN COALESCE(SUM(d.impressions), 0) > 0 
-          THEN ROUND(CAST(SUM(d.clicks) AS REAL) / CAST(SUM(d.impressions) AS REAL) * 100, 2)
-          ELSE 0.0 
-        END as avg_ctr_28d,
-        CASE 
-          WHEN COALESCE(SUM(d.impressions), 0) > 0 
-          THEN ROUND(CAST(SUM(d.position * d.impressions) AS REAL) / CAST(SUM(d.impressions) AS REAL), 1)
-          ELSE 0.0 
-        END as avg_position_28d
+        COALESCE(m.total_clicks_28d, 0) as total_clicks_28d,
+        COALESCE(m.total_impressions_28d, 0) as total_impressions_28d,
+        COALESCE(m.avg_ctr_28d, 0.0) as avg_ctr_28d,
+        COALESCE(m.avg_position_28d, 0.0) as avg_position_28d
       FROM properties p
       LEFT JOIN categories c ON p.category_id = c.id
-      LEFT JOIN daily_metrics d ON d.site_url = p.site_url AND d.date >= ? AND d.date <= ?
-      GROUP BY p.id, p.site_url, p.display_name, p.category_id, p.permission_level, p.last_synced_at, p.is_favorite, p.total_pages, c.name, c.color
+      LEFT JOIN (
+        SELECT 
+          d.site_url,
+          SUM(d.clicks) as total_clicks_28d,
+          SUM(d.impressions) as total_impressions_28d,
+          CASE 
+            WHEN SUM(d.impressions) > 0 
+            THEN ROUND(CAST(SUM(d.clicks) AS REAL) / CAST(SUM(d.impressions) AS REAL) * 100, 2)
+            ELSE 0.0 
+          END as avg_ctr_28d,
+          CASE 
+            WHEN SUM(d.impressions) > 0 
+            THEN ROUND(CAST(SUM(d.position * d.impressions) AS REAL) / CAST(SUM(d.impressions) AS REAL), 1)
+            ELSE 0.0 
+          END as avg_position_28d
+        FROM daily_metrics d
+        INNER JOIN (
+          SELECT site_url, MAX(date) as max_date, date(MAX(date), '-27 days') as min_date
+          FROM daily_metrics
+          GROUP BY site_url
+        ) b ON d.site_url = b.site_url AND d.date >= b.min_date AND d.date <= b.max_date
+        GROUP BY d.site_url
+      ) m ON m.site_url = p.site_url
       ORDER BY total_clicks_28d DESC, p.site_url ASC
-    `).bind(currentStart, currentEnd).all<SiteProperty>();
+    `).all<SiteProperty>();
 
     const properties = results || [];
 
-    // Attach indexed-pages current count + multi-window trends
+    // Attach indexed-pages current count + multi-window trends for each site
     const enriched = [];
     for (const prop of properties) {
-      const snapStart = shiftDate(currentEnd, -59);
       const { results: snaps } = await env.DB.prepare(`
         SELECT date, page_count, total_pages, window_days, is_truncated
         FROM index_snapshots
-        WHERE site_url = ? AND window_days = ? AND date >= ?
+        WHERE site_url = ? AND window_days = ?
         ORDER BY date ASC
-      `).bind(prop.site_url, INDEX_WINDOW_DAYS, snapStart).all<IndexSnapshotRow>();
+      `).bind(prop.site_url, INDEX_WINDOW_DAYS).all<IndexSnapshotRow>();
 
       const stats = buildSiteIndexStats(snaps || [], INDEX_WINDOW_DAYS, prop.total_pages || 0);
       const totalPages = Math.max(prop.total_pages || 0, stats.totalPages, stats.currentCount);

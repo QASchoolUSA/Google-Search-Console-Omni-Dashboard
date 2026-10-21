@@ -11,7 +11,8 @@ import {
   ChevronDown,
   ArrowUpDown,
   Copy,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-solid';
 import { api } from '../services/api';
 import { PerformanceChart } from './PerformanceChart';
@@ -23,6 +24,7 @@ import { QueryMetric, PageMetric, GenAiQueryMetric, GenAiIntentType } from '../t
 interface SiteDetailModalProps {
   siteUrl: string;
   onClose: () => void;
+  onSyncSite?: (siteUrl: string) => Promise<void> | void;
 }
 
 type QuerySortField = 'query' | 'clicks' | 'impressions' | 'ctr' | 'position' | 'opportunity';
@@ -52,10 +54,11 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
   const [genAiSortField, setGenAiSortField] = createSignal<GenAiSortField>('clicks');
   const [genAiSortDir, setGenAiSortDir] = createSignal<SortDirection>('desc');
 
-  const [siteData] = createResource(
+  const [siteData, { refetch }] = createResource(
     () => props.siteUrl,
     (url) => api.getSiteDetails(url, 28)
   );
+  const [isSyncing, setIsSyncing] = createSignal(false);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -227,6 +230,25 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
           </div>
 
           <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
+            <button
+              class="btn btn-outline"
+              disabled={isSyncing()}
+              onClick={async () => {
+                setIsSyncing(true);
+                if (props.onSyncSite) {
+                  await props.onSyncSite(props.siteUrl);
+                } else {
+                  await api.syncSite(props.siteUrl);
+                }
+                refetch();
+                setIsSyncing(false);
+              }}
+              style={{ padding: '6px 12px', "font-size": '0.78rem' }}
+              title="Sync latest keywords, landing pages, and indexed data for this site from Google Search Console"
+            >
+              <RefreshCw size={13} class={isSyncing() ? 'animate-spin' : ''} />
+              <span>{isSyncing() ? 'Syncing...' : 'Sync Site'}</span>
+            </button>
             <button
               class="btn btn-outline"
               onClick={() => setIsAuditOpen(true)}

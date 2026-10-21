@@ -164,6 +164,98 @@ class ApiService {
     return null;
   }
 
+  async discoverVerifiedSites(): Promise<{ site_url: string; display_name: string }[]> {
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discover_only: true })
+      });
+      if (res.ok) {
+        const data = await res.json() as { properties?: { site_url: string; display_name: string }[] };
+        return data.properties || [];
+      }
+    } catch (e) {
+      console.warn('Site discovery failed', e);
+    }
+    return [];
+  }
+
+  async syncSite(siteUrl: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site_url: siteUrl })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return {
+          success: data.success !== false,
+          message: data.message || `Synchronized ${siteUrl}`
+        };
+      }
+      return {
+        success: false,
+        message: data.error || data.message || `Failed to sync ${siteUrl}`
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        message: e?.message || `Network error syncing ${siteUrl}`
+      };
+    }
+  }
+
+  async syncProgressive(
+    onProgress?: (current: number, total: number, siteName: string) => void
+  ): Promise<{ success: boolean; message: string; syncedSitesCount: number }> {
+    // 1. Discover verified properties from GSC
+    let sites = await this.discoverVerifiedSites();
+    if (!sites.length) {
+      // Fall back to properties already stored in DB
+      const existing = await this.getProperties();
+      sites = existing.map(p => ({ site_url: p.site_url, display_name: p.display_name }));
+    }
+
+    if (!sites.length) {
+      // Try standard bulk sync to discover
+      const bulkRes = await this.syncAll();
+      return {
+        success: bulkRes.success,
+        message: bulkRes.message,
+        syncedSitesCount: bulkRes.syncedSitesCount || 0
+      };
+    }
+
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < sites.length; i++) {
+      const site = sites[i];
+      if (onProgress) {
+        onProgress(i + 1, sites.length, site.display_name || site.site_url);
+      }
+
+      const res = await this.syncSite(site.site_url);
+      if (res.success) {
+        successCount++;
+      } else {
+        errors.push(`${site.display_name}: ${res.message}`);
+      }
+    }
+
+    const message = successCount === sites.length
+      ? `Successfully synchronized all ${successCount} properties from Google Search Console!`
+      : `Synchronized ${successCount} of ${sites.length} properties.${errors.length ? ` (${errors.length} had issues)` : ''}`;
+
+    return {
+      success: successCount > 0,
+      message,
+      syncedSitesCount: successCount
+    };
+  }
+
   async syncAll(): Promise<{ success: boolean; message: string; syncedSitesCount?: number }> {
     try {
       const res = await fetch('/api/sync', { method: 'POST' });

@@ -88,7 +88,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       console.error('Error auto-discovering sites from GSC', importErr);
     }
 
-    // 2. Fetch properties to sync from DB
+    // 2. If discover_only requested, return verified properties list immediately
+    if ((body as any).discover_only) {
+      const { results } = await env.DB.prepare('SELECT site_url, display_name FROM properties ORDER BY display_name ASC').all();
+      return new Response(JSON.stringify({
+        success: true,
+        properties: results || []
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Fetch properties to sync from DB
     let sitesToSync: { site_url: string }[] = [];
     if (body.site_url) {
       sitesToSync = [{ site_url: body.site_url }];
@@ -167,10 +178,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           `).bind(id, site.site_url, date, row.clicks, row.impressions, ctr, pos).run();
         }
 
-        // 2. Fetch top search queries (anchored to the exact latest available GSC date)
+        // 2. Fetch top search queries (anchored to the exact latest available GSC date or 2-day lag)
         const latestGscDate = dailyRows.length > 0
           ? dailyRows[dailyRows.length - 1].keys[0]
-          : endDate;
+          : shiftDate(endDate, -2);
         const queryEndDate = latestGscDate;
         const queryStartDate = new Date(new Date(latestGscDate).getTime() - 27 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -195,7 +206,35 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
         if (queryRes.ok) {
           const queryData = await queryRes.json() as { rows?: GSCRow[] };
-          const queryRows = queryData.rows || [];
+          let queryRows = queryData.rows || [];
+
+          // If 28d had 0 queries, check full 90d window so low-traffic sites still retain keyword data
+          if (queryRows.length === 0) {
+            try {
+              const fbQueryRes = await fetch(
+                `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+                {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    startDate,
+                    endDate: queryEndDate,
+                    dimensions: ['query'],
+                    type: 'web',
+                    dataState: 'all',
+                    rowLimit: 100
+                  })
+                }
+              );
+              if (fbQueryRes.ok) {
+                const fbData = await fbQueryRes.json() as { rows?: GSCRow[] };
+                queryRows = fbData.rows || [];
+              }
+            } catch {}
+          }
 
           // Clean up old queries for this site to prevent duplicate accumulation
           await env.DB.prepare('DELETE FROM query_metrics WHERE site_url = ?').bind(site.site_url).run();
@@ -214,7 +253,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
                 impressions = excluded.impressions,
                 ctr = excluded.ctr,
                 position = excluded.position
-            `).bind(id, site.site_url, q, endDate, row.clicks, row.impressions, ctr, pos).run();
+            `).bind(id, site.site_url, q, queryEndDate, row.clicks, row.impressions, ctr, pos).run();
           }
         }
 
@@ -240,7 +279,35 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
         if (pageRes.ok) {
           const pageData = await pageRes.json() as { rows?: GSCRow[] };
-          const pageRows = pageData.rows || [];
+          let pageRows = pageData.rows || [];
+
+          // If 28d returned 0 pages, check full 90d window so low-traffic sites still show their URLs
+          if (pageRows.length === 0) {
+            try {
+              const fbPageRes = await fetch(
+                `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+                {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    startDate,
+                    endDate: queryEndDate,
+                    dimensions: ['page'],
+                    type: 'web',
+                    dataState: 'all',
+                    rowLimit: 50
+                  })
+                }
+              );
+              if (fbPageRes.ok) {
+                const fbData = await fbPageRes.json() as { rows?: GSCRow[] };
+                pageRows = fbData.rows || [];
+              }
+            } catch {}
+          }
 
           // Clean up old page metrics for this site
           await env.DB.prepare('DELETE FROM page_metrics WHERE site_url = ?').bind(site.site_url).run();
@@ -258,6 +325,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
                 clicks = excluded.clicks,
                 impressions = excluded.impressions,
                 ctr = excluded.ctr,
+                position = excluded.position
+            `).bind(id, site.site_url, page, queryEndDate, row.clicks, row.impressions, ctr, pos).run();
+          }
+        }
                 position = excluded.position
             `).bind(id, site.site_url, page, queryEndDate, row.clicks, row.impressions, ctr, pos).run();
           }
@@ -372,16 +443,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
           const { results: existingSnapRows } = await env.DB.prepare(
             `SELECT date FROM index_snapshots
-             WHERE site_url = ? AND window_days = ? AND date >= ? AND date <= ?`
+             WHERE site_url = ? AND window_days = ?`
           ).bind(
             site.site_url,
-            INDEX_WINDOW_DAYS,
-            shiftDate(latestGscDate, -59),
-            latestGscDate
+            INDEX_WINDOW_DAYS
           ).all<{ date: string }>();
 
           const existingDates = new Set((existingSnapRows || []).map((r) => r.date));
-          const datesToFetch = selectSnapshotDatesToFetch(latestGscDate, existingDates);
+          const isBulkSync = sitesToSync.length > 1;
+          const maxFetches = isBulkSync ? 2 : 5;
+          const datesToFetch = selectSnapshotDatesToFetch(latestGscDate, existingDates, 60, maxFetches);
 
           let latestPageCount = 0;
 
@@ -392,7 +463,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
                 session.access_token,
                 site.site_url,
                 snapStart,
-                snapDate
+                snapDate,
+                isBulkSync ? 1 : 2
               );
               latestPageCount = Math.max(latestPageCount, count);
               const snapshotTotal = Math.max(siteTotalPages, count);

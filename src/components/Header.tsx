@@ -13,6 +13,7 @@ interface HeaderProps {
   days: number;
   onSelectDays: (days: number) => void;
   isSyncing: boolean;
+  syncProgress?: string;
   onSync: () => void;
   authStatus: UserAuthStatus;
   onLogout: () => void;
@@ -96,7 +97,7 @@ export const Header: Component<HeaderProps> = (props) => {
             class={props.isSyncing ? 'animate-spin' : ''} 
             style={{ animation: props.isSyncing ? 'spin 1s linear infinite' : 'none' }}
           />
-          <span>{props.isSyncing ? 'Syncing...' : 'Sync All'}</span>
+          <span>{props.syncProgress || (props.isSyncing ? 'Syncing...' : 'Sync All')}</span>
         </button>
 
         {/* Auth / Account Button */}

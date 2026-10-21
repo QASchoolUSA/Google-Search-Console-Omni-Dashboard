@@ -8,7 +8,8 @@ import {
   Tag,
   ChevronUp,
   ChevronDown,
-  ArrowUpDown
+  ArrowUpDown,
+  RefreshCw
 } from 'lucide-solid';
 import { SiteProperty, Category } from '../types';
 
@@ -22,11 +23,13 @@ interface SitesExplorerProps {
   onSelectSite: (siteUrl: string) => void;
   onAssignCategory: (siteUrl: string, categoryId: string | null) => void;
   onToggleFavorite: (siteUrl: string, isFav: boolean) => void;
+  onSyncSite?: (siteUrl: string) => void;
 }
 
 export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
   const [sortField, setSortField] = createSignal<SiteSortField>('total_clicks_28d');
   const [sortDirection, setSortDirection] = createSignal<SortDirection>('desc');
+  const [syncingSite, setSyncingSite] = createSignal<string | null>(null);
 
   const handleSort = (field: SiteSortField) => {
     if (sortField() === field) {
@@ -157,7 +160,26 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                     </div>
                   </div>
 
-                  <div class="site-badges-group" onClick={(e) => e.stopPropagation()}>
+                  <div class="site-badges-group" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', "align-items": 'center', gap: '4px' }}>
+                    <Show when={props.onSyncSite}>
+                      <button
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: syncingSite() === site.site_url ? 'var(--color-primary)' : 'var(--text-muted)',
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                        onClick={async () => {
+                          setSyncingSite(site.site_url);
+                          await props.onSyncSite!(site.site_url);
+                          setSyncingSite(null);
+                        }}
+                        title="Sync this website from Google Search Console"
+                      >
+                        <RefreshCw size={14} class={syncingSite() === site.site_url ? 'animate-spin' : ''} />
+                      </button>
+                    </Show>
                     <button
                       style={{
                         background: 'transparent',
@@ -430,16 +452,33 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                     </td>
 
                     <td>
-                      <button
-                        class="btn btn-outline"
-                        style={{ padding: '4px 10px', "font-size": '0.75rem' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          props.onSelectSite(site.site_url);
-                        }}
-                      >
-                        Inspect
-                      </button>
+                      <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                        <button
+                          class="btn btn-outline"
+                          style={{ padding: '4px 10px', "font-size": '0.75rem' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            props.onSelectSite(site.site_url);
+                          }}
+                        >
+                          Inspect
+                        </button>
+                        <Show when={props.onSyncSite}>
+                          <button
+                            class="btn btn-outline"
+                            style={{ padding: '4px 8px', "font-size": '0.75rem' }}
+                            title="Sync this website from Google Search Console"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setSyncingSite(site.site_url);
+                              await props.onSyncSite!(site.site_url);
+                              setSyncingSite(null);
+                            }}
+                          >
+                            <RefreshCw size={12} class={syncingSite() === site.site_url ? 'animate-spin' : ''} />
+                          </button>
+                        </Show>
+                      </div>
                     </td>
                   </tr>
                 )}

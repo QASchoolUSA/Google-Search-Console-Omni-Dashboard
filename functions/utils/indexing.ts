@@ -343,46 +343,30 @@ export async function fetchSiteTotalPagesFromGsc(
 }
 
 /**
- * Fallback: lightweight direct fetch of website's public sitemap.xml to count URLs
+ * Fallback: lightweight direct fetch of website's public sitemap.xml to count URLs.
+ * Checks root domain, www/non-www alternate, and robots.txt Sitemap: directives.
  */
 export async function fetchDirectSitemapUrlCount(siteUrl: string): Promise<number> {
-  try {
-    let cleanUrl = siteUrl;
-    if (cleanUrl.startsWith('sc-domain:')) {
-      cleanUrl = `https://${cleanUrl.replace('sc-domain:', '')}`;
-    }
-    cleanUrl = cleanUrl.replace(/\/+$/, '');
-    const sitemapUrl = `${cleanUrl}/sitemap.xml`;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-
-    const res = await fetch(sitemapUrl, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GSC-Dashboard/1.0)' }
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) return 0;
-    const text = await res.text();
-
-    // Check for <url> tags inside <urlset>
-    const urlMatches = text.match(/<url\b[^>]*>/gi);
+  const parseSitemapXml = async (xmlText: string): Promise<number> => {
+    // 1. Check for <url> tags inside standard <urlset>
+    const urlMatches = xmlText.match(/<url\b[^>]*>/gi);
     if (urlMatches && urlMatches.length > 0) {
       return urlMatches.length;
     }
 
-    // Check for <sitemap> in index sitemaps
-    const sitemapMatches = text.match(/<sitemap\b[^>]*>/gi);
+    // 2. Check for <sitemap> in index sitemaps
+    const sitemapMatches = xmlText.match(/<sitemap\b[^>]*>/gi);
     if (sitemapMatches && sitemapMatches.length > 0) {
       const locRegex = /<loc>(https?:\/\/[^<]+)<\/loc>/gi;
       let match;
       let total = 0;
       let childCount = 0;
-      while ((match = locRegex.exec(text)) !== null && childCount < 5) {
+      while ((match = locRegex.exec(xmlText)) !== null && childCount < 5) {
         childCount++;
         try {
-          const childRes = await fetch(match[1]);
+          const childRes = await fetch(match[1], {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GSC-Dashboard/1.0)' }
+          });
           if (childRes.ok) {
             const childTxt = await childRes.text();
             const childUrls = childTxt.match(/<url\b[^>]*>/gi);
@@ -392,6 +376,71 @@ export async function fetchDirectSitemapUrlCount(siteUrl: string): Promise<numbe
       }
       if (total > 0) return total;
     }
+
+    return 0;
+  };
+
+  try {
+    let cleanUrl = siteUrl;
+    if (cleanUrl.startsWith('sc-domain:')) {
+      cleanUrl = `https://${cleanUrl.replace('sc-domain:', '')}`;
+    }
+    cleanUrl = cleanUrl.replace(/\/+$/, '');
+
+    const candidates: string[] = [`${cleanUrl}/sitemap.xml`];
+
+    // Try www alternate
+    try {
+      const parsed = new URL(cleanUrl);
+      if (parsed.hostname.startsWith('www.')) {
+        candidates.push(`${parsed.protocol}//${parsed.hostname.slice(4)}/sitemap.xml`);
+      } else {
+        candidates.push(`${parsed.protocol}//www.${parsed.hostname}/sitemap.xml`);
+      }
+    } catch {}
+
+    for (const url of candidates) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch(url, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GSC-Dashboard/1.0)' }
+        });
+        clearTimeout(timeout);
+        if (res.ok) {
+          const text = await res.text();
+          const count = await parseSitemapXml(text);
+          if (count > 0) return count;
+        }
+      } catch {}
+    }
+
+    // Try robots.txt for Sitemap declaration
+    try {
+      const robotsUrl = `${cleanUrl}/robots.txt`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const robotsRes = await fetch(robotsUrl, {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GSC-Dashboard/1.0)' }
+      });
+      clearTimeout(timeout);
+      if (robotsRes.ok) {
+        const robotsTxt = await robotsRes.text();
+        const sitemapDirective = robotsTxt.match(/Sitemap:\s*(https?:\/\/[^\s\r\n]+)/i);
+        if (sitemapDirective && sitemapDirective[1]) {
+          const sRes = await fetch(sitemapDirective[1].trim(), {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GSC-Dashboard/1.0)' }
+          });
+          if (sRes.ok) {
+            const xml = await sRes.text();
+            const count = await parseSitemapXml(xml);
+            if (count > 0) return count;
+          }
+        }
+      }
+    } catch {}
 
     return 0;
   } catch {
