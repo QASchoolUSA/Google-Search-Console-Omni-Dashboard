@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS properties (
   permission_level TEXT DEFAULT 'siteOwner',
   last_synced_at TIMESTAMP,
   is_favorite INTEGER DEFAULT 0,
+  total_pages INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -97,6 +98,7 @@ CREATE TABLE IF NOT EXISTS index_snapshots (
   site_url TEXT NOT NULL REFERENCES properties(site_url) ON DELETE CASCADE,
   date TEXT NOT NULL,
   page_count INTEGER NOT NULL DEFAULT 0,
+  total_pages INTEGER NOT NULL DEFAULT 0,
   window_days INTEGER NOT NULL DEFAULT 28,
   is_truncated INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

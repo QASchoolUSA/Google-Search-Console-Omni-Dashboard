@@ -8,7 +8,12 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
       category_id?: string | null;
       display_name?: string;
       is_favorite?: number;
+      total_pages?: number;
     };
+
+    try {
+      await env.DB.prepare('ALTER TABLE properties ADD COLUMN total_pages INTEGER DEFAULT 0').run();
+    } catch {}
 
     if (body.category_id !== undefined) {
       await env.DB.prepare('UPDATE properties SET category_id = ? WHERE site_url = ?')
@@ -23,6 +28,11 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, params, env 
     if (body.is_favorite !== undefined) {
       await env.DB.prepare('UPDATE properties SET is_favorite = ? WHERE site_url = ?')
         .bind(body.is_favorite, siteUrl).run();
+    }
+
+    if (body.total_pages !== undefined) {
+      await env.DB.prepare('UPDATE properties SET total_pages = ? WHERE site_url = ?')
+        .bind(body.total_pages, siteUrl).run();
     }
 
     return new Response(JSON.stringify({ success: true }), {

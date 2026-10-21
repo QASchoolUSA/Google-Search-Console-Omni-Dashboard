@@ -220,10 +220,22 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                     </span>
                   </div>
                   <div class="site-metric-item">
-                    <span class="lbl">Indexed</span>
-                    <span class="val" style={{ color: '#38bdf8' }}>
-                      {formatNumber(site.indexed_pages)}
+                    <span class="lbl">Indexed / Total</span>
+                    <span class="val" style={{ color: '#38bdf8', "font-size": '0.86rem', display: 'flex', "align-items": 'baseline', "justify-content": 'center', gap: '2px' }}>
+                      <span>{formatNumber(site.indexed_pages)}</span>
+                      <span style={{ color: 'var(--text-muted)', "font-size": '0.74rem', "font-weight": 400 }}>
+                        / {formatNumber(site.total_pages || site.indexed_pages || 0)}
+                      </span>
                     </span>
+                    <div class="site-card-index-bar">
+                      <div
+                        class="site-card-index-fill"
+                        style={{
+                          width: `${Math.min(100, Math.round(((site.indexed_pages || 0) / Math.max(site.total_pages || site.indexed_pages || 1, 1)) * 100))}%`
+                        }}
+                        title={`${formatNumber(site.indexed_pages)} of ${formatNumber(site.total_pages || site.indexed_pages || 0)} indexed (${Math.min(100, Math.round(((site.indexed_pages || 0) / Math.max(site.total_pages || site.indexed_pages || 1, 1)) * 100))}%)`}
+                      />
+                    </div>
                   </div>
                   <div class="site-metric-item">
                     <span class="lbl">7d / 30d</span>
@@ -294,7 +306,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                 </th>
                 <th class="sortable-th" onClick={() => handleSort('indexed_pages')} title="Click to sort by indexed pages">
                   <div class="th-content">
-                    <span>Indexed</span>
+                    <span>Indexed / Total</span>
                     {renderSortIcon('indexed_pages')}
                   </div>
                 </th>
@@ -372,8 +384,28 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                       {site.avg_position_28d}
                     </td>
 
-                    <td style={{ "font-family": 'var(--font-heading)', "font-weight": 600, color: '#38bdf8' }}>
-                      {formatNumber(site.indexed_pages)}
+                    <td>
+                      <div style={{ display: 'flex', "flex-direction": 'column', gap: '3px' }}>
+                        <div style={{ display: 'flex', "align-items": 'center', gap: '5px' }}>
+                          <span style={{ "font-family": 'var(--font-heading)', "font-weight": 600, color: '#38bdf8' }}>
+                            {formatNumber(site.indexed_pages)}
+                          </span>
+                          <span style={{ color: 'var(--text-muted)', "font-size": '0.74rem' }}>
+                            / {formatNumber(site.total_pages || site.indexed_pages || 0)}
+                          </span>
+                          <span class="index-pct-pill">
+                            {Math.min(100, Math.round(((site.indexed_pages || 0) / Math.max(site.total_pages || site.indexed_pages || 1, 1)) * 100))}%
+                          </span>
+                        </div>
+                        <div class="table-index-bar">
+                          <div
+                            class="table-index-fill"
+                            style={{
+                              width: `${Math.min(100, Math.round(((site.indexed_pages || 0) / Math.max(site.total_pages || site.indexed_pages || 1, 1)) * 100))}%`
+                            }}
+                          />
+                        </div>
+                      </div>
                     </td>
 
                     <td>

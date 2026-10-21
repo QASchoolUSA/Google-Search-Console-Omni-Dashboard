@@ -8,6 +8,7 @@ export type IndexTrendWindow = (typeof INDEX_TREND_WINDOWS)[number];
 export interface IndexSnapshotRow {
   date: string;
   page_count: number;
+  total_pages?: number;
   window_days?: number;
   is_truncated?: number;
 }
@@ -22,11 +23,13 @@ export interface IndexTrendPoint {
 
 export interface SiteIndexStats {
   currentCount: number;
+  totalPages: number;
+  indexRatio: number;
   asOfDate: string | null;
   windowDays: number;
   isTruncated: boolean;
   trends: IndexTrendPoint[];
-  timeline: { date: string; page_count: number }[];
+  timeline: { date: string; page_count: number; total_pages?: number }[];
 }
 
 interface GSCPageRow {
@@ -187,11 +190,15 @@ export function selectSnapshotDatesToFetch(
 
 export function buildSiteIndexStats(
   snapshots: IndexSnapshotRow[],
-  windowDays: number = INDEX_WINDOW_DAYS
+  windowDays: number = INDEX_WINDOW_DAYS,
+  fallbackTotalPages: number = 0
 ): SiteIndexStats {
   if (!snapshots.length) {
+    const totalPages = Math.max(0, fallbackTotalPages);
     return {
       currentCount: 0,
+      totalPages,
+      indexRatio: 0,
       asOfDate: null,
       windowDays,
       isTruncated: false,
@@ -214,6 +221,11 @@ export function buildSiteIndexStats(
   const sorted = [...snapshots].sort((a, b) => a.date.localeCompare(b.date));
   const latest = sorted[sorted.length - 1];
 
+  const currentCount = latest.page_count;
+  const snapshotTotal = Number(latest.total_pages || 0);
+  const totalPages = Math.max(snapshotTotal, fallbackTotalPages, currentCount);
+  const indexRatio = totalPages > 0 ? Math.round((currentCount / totalPages) * 1000) / 10 : 0;
+
   const trends: IndexTrendPoint[] = INDEX_TREND_WINDOWS.map((days) => {
     const prevDate = shiftDate(latest.date, -days);
     // Prefer exact date; fall back to nearest earlier snapshot within 2 days
@@ -234,11 +246,155 @@ export function buildSiteIndexStats(
   });
 
   return {
-    currentCount: latest.page_count,
+    currentCount,
+    totalPages,
+    indexRatio,
     asOfDate: latest.date,
     windowDays,
     isTruncated: Boolean(latest.is_truncated),
     trends,
-    timeline: sorted.map((s) => ({ date: s.date, page_count: s.page_count }))
+    timeline: sorted.map((s) => ({
+      date: s.date,
+      page_count: s.page_count,
+      total_pages: s.total_pages
+    }))
   };
+}
+
+/**
+ * Fetch total submitted pages from GSC Sitemaps API
+ */
+export async function fetchSiteTotalPagesFromGsc(
+  accessToken: string,
+  siteUrl: string
+): Promise<{ totalSubmitted: number; sitemapsCount: number }> {
+  const encodedSite = encodeURIComponent(siteUrl);
+  try {
+    const res = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/sitemaps`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!res.ok) {
+      return { totalSubmitted: 0, sitemapsCount: 0 };
+    }
+
+    const data = (await res.json()) as {
+      sitemap?: Array<{
+        path: string;
+        isSitemapsIndex?: boolean;
+        contents?: Array<{
+          type?: string;
+          submitted?: string | number;
+          indexed?: string | number;
+        }>;
+      }>;
+    };
+
+    const sitemaps = data.sitemap || [];
+    let totalSubmitted = 0;
+
+    for (const sm of sitemaps) {
+      if (sm.contents && sm.contents.length > 0) {
+        for (const c of sm.contents) {
+          const sub = Number(c.submitted || 0);
+          if (!isNaN(sub) && sub > 0) {
+            totalSubmitted += sub;
+          }
+        }
+      } else if (sm.isSitemapsIndex) {
+        try {
+          const childRes = await fetch(
+            `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/sitemaps?sitemapIndex=${encodeURIComponent(sm.path)}`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          if (childRes.ok) {
+            const childData = (await childRes.json()) as {
+              sitemap?: Array<{
+                contents?: Array<{ submitted?: string | number }>;
+              }>;
+            };
+            for (const childSm of childData.sitemap || []) {
+              for (const c of childSm.contents || []) {
+                const sub = Number(c.submitted || 0);
+                if (!isNaN(sub) && sub > 0) {
+                  totalSubmitted += sub;
+                }
+              }
+            }
+          }
+        } catch {
+          // Ignore child sitemap errors
+        }
+      }
+    }
+
+    return { totalSubmitted, sitemapsCount: sitemaps.length };
+  } catch {
+    return { totalSubmitted: 0, sitemapsCount: 0 };
+  }
+}
+
+/**
+ * Fallback: lightweight direct fetch of website's public sitemap.xml to count URLs
+ */
+export async function fetchDirectSitemapUrlCount(siteUrl: string): Promise<number> {
+  try {
+    let cleanUrl = siteUrl;
+    if (cleanUrl.startsWith('sc-domain:')) {
+      cleanUrl = `https://${cleanUrl.replace('sc-domain:', '')}`;
+    }
+    cleanUrl = cleanUrl.replace(/\/+$/, '');
+    const sitemapUrl = `${cleanUrl}/sitemap.xml`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(sitemapUrl, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GSC-Dashboard/1.0)' }
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return 0;
+    const text = await res.text();
+
+    // Check for <url> tags inside <urlset>
+    const urlMatches = text.match(/<url\b[^>]*>/gi);
+    if (urlMatches && urlMatches.length > 0) {
+      return urlMatches.length;
+    }
+
+    // Check for <sitemap> in index sitemaps
+    const sitemapMatches = text.match(/<sitemap\b[^>]*>/gi);
+    if (sitemapMatches && sitemapMatches.length > 0) {
+      const locRegex = /<loc>(https?:\/\/[^<]+)<\/loc>/gi;
+      let match;
+      let total = 0;
+      let childCount = 0;
+      while ((match = locRegex.exec(text)) !== null && childCount < 5) {
+        childCount++;
+        try {
+          const childRes = await fetch(match[1]);
+          if (childRes.ok) {
+            const childTxt = await childRes.text();
+            const childUrls = childTxt.match(/<url\b[^>]*>/gi);
+            if (childUrls) total += childUrls.length;
+          }
+        } catch {}
+      }
+      if (total > 0) return total;
+    }
+
+    return 0;
+  } catch {
+    return 0;
+  }
 }

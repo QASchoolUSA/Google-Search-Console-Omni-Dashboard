@@ -1,9 +1,6 @@
 import { 
   Category, 
   SiteProperty, 
-  DailyMetric, 
-  QueryMetric, 
-  PageMetric, 
   UserAuthStatus, 
   AggregateData, 
   AuditResult,
@@ -108,6 +105,20 @@ class ApiService {
       });
     } catch (e) {
       console.error('Favorite update error', e);
+    }
+  }
+
+  async updateSite(siteUrl: string, patch: { display_name?: string; category_id?: string | null; is_favorite?: number; total_pages?: number }): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/sites/${encodeURIComponent(siteUrl)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch)
+      });
+      return res.ok;
+    } catch (e) {
+      console.error('Site update error', e);
+      return false;
     }
   }
 

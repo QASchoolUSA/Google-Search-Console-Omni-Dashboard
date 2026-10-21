@@ -49,9 +49,15 @@ const snaps = [
   { date: '2026-10-12', page_count: 990 },  // ~3d
   { date: '2026-10-15', page_count: 1000 }
 ];
-const stats = buildSiteIndexStats(snaps, 28);
+const stats = buildSiteIndexStats(snaps, 28, 1200);
 if (stats.currentCount !== 1000 || stats.asOfDate !== '2026-10-15') {
   throw new Error('FAIL: latest snapshot not selected');
+}
+if (stats.totalPages !== 1200) {
+  throw new Error(`FAIL: expected totalPages 1200, got ${stats.totalPages}`);
+}
+if (stats.indexRatio !== 83.3) {
+  throw new Error(`FAIL: expected indexRatio 83.3, got ${stats.indexRatio}`);
 }
 if (stats.trends.length !== INDEX_TREND_WINDOWS.length) {
   throw new Error('FAIL: expected all trend windows');
@@ -86,5 +92,17 @@ if (toFetch.length > 12) {
   throw new Error('FAIL: must respect maxFetches');
 }
 console.log('✓ PASS: selectSnapshotDatesToFetch prioritizes trend anchors');
+
+// 7. Total pages math & floor guarantee
+const statsWithoutFallback = buildSiteIndexStats([{ date: '2026-10-15', page_count: 50 }], 28);
+if (statsWithoutFallback.totalPages !== 50 || statsWithoutFallback.indexRatio !== 100) {
+  throw new Error(`FAIL: fallback to currentCount expected 50 and 100%, got ${statsWithoutFallback.totalPages}, ${statsWithoutFallback.indexRatio}`);
+}
+
+const statsWithSnapshotTotal = buildSiteIndexStats([{ date: '2026-10-15', page_count: 80, total_pages: 100 }], 28);
+if (statsWithSnapshotTotal.totalPages !== 100 || statsWithSnapshotTotal.indexRatio !== 80) {
+  throw new Error(`FAIL: snapshot total expected 100 and 80%, got ${statsWithSnapshotTotal.totalPages}, ${statsWithSnapshotTotal.indexRatio}`);
+}
+console.log('✓ PASS: totalPages and indexRatio calculations verified');
 
 console.log('\nAll indexing tests passed.');

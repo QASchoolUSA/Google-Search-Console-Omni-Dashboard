@@ -40,11 +40,13 @@ export interface IndexTrendPoint {
 
 export interface SiteIndexStats {
   currentCount: number;
+  totalPages: number;
+  indexRatio: number;
   asOfDate: string | null;
   windowDays: number;
   isTruncated: boolean;
   trends: IndexTrendPoint[];
-  timeline: { date: string; page_count: number }[];
+  timeline: { date: string; page_count: number; total_pages?: number }[];
 }
 
 export interface SiteProperty {
@@ -57,6 +59,7 @@ export interface SiteProperty {
   permission_level: string;
   last_synced_at: string | null;
   is_favorite: number;
+  total_pages?: number;
   total_clicks_28d?: number;
   total_impressions_28d?: number;
   avg_ctr_28d?: number;

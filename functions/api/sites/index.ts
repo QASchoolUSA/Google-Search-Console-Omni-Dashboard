@@ -17,12 +17,20 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         site_url TEXT NOT NULL,
         date TEXT NOT NULL,
         page_count INTEGER NOT NULL DEFAULT 0,
+        total_pages INTEGER NOT NULL DEFAULT 0,
         window_days INTEGER NOT NULL DEFAULT 28,
         is_truncated INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(site_url, date, window_days)
       )
     `).run();
+
+    try {
+      await env.DB.prepare('ALTER TABLE properties ADD COLUMN total_pages INTEGER DEFAULT 0').run();
+    } catch {}
+    try {
+      await env.DB.prepare('ALTER TABLE index_snapshots ADD COLUMN total_pages INTEGER DEFAULT 0').run();
+    } catch {}
 
     // Find latest available date in database to anchor 28d window accurately
     const maxRow = await env.DB.prepare('SELECT MAX(date) as maxDate FROM daily_metrics').first<{ maxDate: string | null }>();
@@ -40,6 +48,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         p.permission_level,
         p.last_synced_at,
         p.is_favorite,
+        COALESCE(p.total_pages, 0) as total_pages,
         c.name as category_name,
         c.color as category_color,
         COALESCE(SUM(d.clicks), 0) as total_clicks_28d,
@@ -57,7 +66,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       FROM properties p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN daily_metrics d ON d.site_url = p.site_url AND d.date >= ? AND d.date <= ?
-      GROUP BY p.id, p.site_url, p.display_name, p.category_id, p.permission_level, p.last_synced_at, p.is_favorite, c.name, c.color
+      GROUP BY p.id, p.site_url, p.display_name, p.category_id, p.permission_level, p.last_synced_at, p.is_favorite, p.total_pages, c.name, c.color
       ORDER BY total_clicks_28d DESC, p.site_url ASC
     `).bind(currentStart, currentEnd).all<SiteProperty>();
 
@@ -68,13 +77,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
     for (const prop of properties) {
       const snapStart = shiftDate(currentEnd, -59);
       const { results: snaps } = await env.DB.prepare(`
-        SELECT date, page_count, window_days, is_truncated
+        SELECT date, page_count, total_pages, window_days, is_truncated
         FROM index_snapshots
         WHERE site_url = ? AND window_days = ? AND date >= ?
         ORDER BY date ASC
       `).bind(prop.site_url, INDEX_WINDOW_DAYS, snapStart).all<IndexSnapshotRow>();
 
-      const stats = buildSiteIndexStats(snaps || [], INDEX_WINDOW_DAYS);
+      const stats = buildSiteIndexStats(snaps || [], INDEX_WINDOW_DAYS, prop.total_pages || 0);
+      const totalPages = Math.max(prop.total_pages || 0, stats.totalPages, stats.currentCount);
       const trendMap: Record<string, number | null> = {};
       for (const t of stats.trends) {
         trendMap[`indexed_change_${t.days}d`] = t.changePct;
@@ -82,6 +92,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
 
       enriched.push({
         ...prop,
+        total_pages: totalPages,
         indexed_pages: stats.currentCount,
         indexed_as_of: stats.asOfDate,
         indexed_truncated: stats.isTruncated ? 1 : 0,

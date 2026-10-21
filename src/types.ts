@@ -21,11 +21,13 @@ export interface IndexTrendPoint {
 
 export interface SiteIndexStats {
   currentCount: number;
+  totalPages: number;
+  indexRatio: number;
   asOfDate: string | null;
   windowDays: number;
   isTruncated: boolean;
   trends: IndexTrendPoint[];
-  timeline: { date: string; page_count: number }[];
+  timeline: { date: string; page_count: number; total_pages?: number }[];
 }
 
 export interface SiteProperty {
@@ -38,6 +40,7 @@ export interface SiteProperty {
   permission_level: string;
   last_synced_at?: string | null;
   is_favorite: number;
+  total_pages?: number;
   total_clicks_28d?: number;
   total_impressions_28d?: number;
   avg_ctr_28d?: number;
@@ -201,11 +204,15 @@ export interface IndexingPortfolioResponse {
   windowDays: number;
   trendWindows: IndexTrendWindow[];
   totalIndexedPages: number;
+  totalAllPages: number;
+  overallIndexRatio: number;
   siteCount: number;
   sites: {
     site_url: string;
     display_name: string;
     indexed_pages: number;
+    total_pages: number;
+    index_ratio: number;
     as_of_date: string | null;
     is_truncated: boolean;
     trends: Record<string, {
@@ -214,6 +221,6 @@ export interface IndexingPortfolioResponse {
       previousCount: number | null;
       previousDate: string | null;
     }>;
-    timeline: { date: string; page_count: number }[];
+    timeline: { date: string; page_count: number; total_pages?: number }[];
   }[];
 }

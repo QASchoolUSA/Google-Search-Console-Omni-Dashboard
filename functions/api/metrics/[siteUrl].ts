@@ -132,7 +132,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     `).bind(siteUrl).all<PageMetric>();
 
     // Indexed pages (unique URLs with impressions) + multi-window trends
-    let indexStats = buildSiteIndexStats([], INDEX_WINDOW_DAYS);
+    const propTotal = Number((property as any)?.total_pages || 0);
+    let indexStats = buildSiteIndexStats([], INDEX_WINDOW_DAYS, propTotal);
     try {
       await env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS index_snapshots (
@@ -140,6 +141,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
           site_url TEXT NOT NULL,
           date TEXT NOT NULL,
           page_count INTEGER NOT NULL DEFAULT 0,
+          total_pages INTEGER NOT NULL DEFAULT 0,
           window_days INTEGER NOT NULL DEFAULT 28,
           is_truncated INTEGER NOT NULL DEFAULT 0,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -147,14 +149,21 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
         )
       `).run();
 
+      try {
+        await env.DB.prepare('ALTER TABLE properties ADD COLUMN total_pages INTEGER DEFAULT 0').run();
+      } catch {}
+      try {
+        await env.DB.prepare('ALTER TABLE index_snapshots ADD COLUMN total_pages INTEGER DEFAULT 0').run();
+      } catch {}
+
       const { results: indexSnaps } = await env.DB.prepare(`
-        SELECT date, page_count, window_days, is_truncated
+        SELECT date, page_count, total_pages, window_days, is_truncated
         FROM index_snapshots
         WHERE site_url = ? AND window_days = ?
         ORDER BY date ASC
       `).bind(siteUrl, INDEX_WINDOW_DAYS).all<IndexSnapshotRow>();
 
-      indexStats = buildSiteIndexStats(indexSnaps || [], INDEX_WINDOW_DAYS);
+      indexStats = buildSiteIndexStats(indexSnaps || [], INDEX_WINDOW_DAYS, propTotal);
     } catch (indexErr) {
       console.warn('Indexed pages lookup failed', indexErr);
     }

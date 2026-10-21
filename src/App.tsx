@@ -1,11 +1,9 @@
 import { Component, createSignal, onMount, createEffect, Show } from 'solid-js';
 import { 
   LogIn, 
-  Sparkles, 
   RefreshCw, 
   Lock, 
-  ShieldCheck, 
-  Globe 
+  ShieldCheck 
 } from 'lucide-solid';
 import { Header } from './components/Header';
 import { CategoryFilter } from './components/CategoryFilter';
@@ -161,6 +159,13 @@ export const App: Component = () => {
     return cat ? cat.name : undefined;
   };
 
+  const portfolioIndexed = () => filteredProperties().reduce((acc, p) => acc + (p.indexed_pages || 0), 0);
+  const portfolioTotal = () => filteredProperties().reduce((acc, p) => acc + (p.total_pages || p.indexed_pages || 0), 0);
+  const portfolioRatio = () => {
+    const tot = portfolioTotal();
+    return tot > 0 ? Math.round((portfolioIndexed() / tot) * 1000) / 10 : 0;
+  };
+
   return (
     <div class="app-container">
       {/* Toast Notification Banner */}
@@ -288,22 +293,28 @@ export const App: Component = () => {
         {/* Generative AI & AI Overviews Analytics Widget */}
         <GenAiMetricsWidget data={aggregateData()?.aiMetrics} />
 
-        {/* Portfolio indexed-pages rollup */}
-        <Show when={filteredProperties().some((p) => (p.indexed_pages || 0) > 0)}>
+        {/* Portfolio indexed-pages rollup: Total indexed and out of how many across all sites */}
+        <Show when={filteredProperties().length > 0}>
           <div class="indexed-portfolio-bar">
             <div>
-              <div class="indexed-portfolio-label">Portfolio Indexed Pages</div>
+              <div class="indexed-portfolio-label">Portfolio Indexation Coverage</div>
               <div class="indexed-portfolio-value">
-                {filteredProperties()
-                  .reduce((acc, p) => acc + (p.indexed_pages || 0), 0)
-                  .toLocaleString()}
+                <span>{portfolioIndexed().toLocaleString()}</span>
+                <span class="indexed-portfolio-total-sep">/</span>
+                <span class="indexed-portfolio-total-val">{portfolioTotal().toLocaleString()}</span>
+                <span class="indexed-portfolio-pct-badge">{portfolioRatio()}% indexed</span>
               </div>
               <div class="indexed-portfolio-hint">
-                Sum of unique URLs with search impressions across visible properties (28d window). Open a site for 3/7/14/30/60-day trends.
+                {portfolioIndexed().toLocaleString()} indexed pages out of {portfolioTotal().toLocaleString()} total pages across {filteredProperties().length} properties ({days()}d window). Open any site to inspect keyword queries and trends.
               </div>
             </div>
-            <div class="indexed-portfolio-sites">
-              {filteredProperties().filter((p) => (p.indexed_pages || 0) > 0).length} sites tracked
+            <div class="indexed-portfolio-right">
+              <div class="indexed-portfolio-progress-bar">
+                <div class="indexed-portfolio-progress-fill" style={{ width: `${Math.min(100, portfolioRatio())}%` }} />
+              </div>
+              <div class="indexed-portfolio-sites">
+                {filteredProperties().filter((p) => (p.indexed_pages || 0) > 0).length} of {filteredProperties().length} sites indexed
+              </div>
             </div>
           </div>
         </Show>

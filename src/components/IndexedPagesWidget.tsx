@@ -72,11 +72,27 @@ export const IndexedPagesWidget: Component<IndexedPagesWidgetProps> = (props) =>
               INDEXED PAGES
             </span>
           </div>
-          <div style={{ "font-family": 'var(--font-heading)', "font-size": props.compact ? '1.6rem' : '2rem', "font-weight": 700, color: '#fff', "line-height": 1.1 }}>
-            {formatNumber(props.stats?.currentCount ?? 0)}
+          <div style={{ display: 'flex', "align-items": 'baseline', gap: '8px', "flex-wrap": 'wrap' }}>
+            <span style={{ "font-family": 'var(--font-heading)', "font-size": props.compact ? '1.6rem' : '2.1rem', "font-weight": 700, color: '#38bdf8', "line-height": 1.1 }}>
+              {formatNumber(props.stats?.currentCount ?? 0)}
+            </span>
+            <span style={{ "font-size": props.compact ? '1rem' : '1.2rem', color: 'var(--text-secondary)', "font-weight": 500 }}>
+              / {formatNumber(props.stats?.totalPages ?? (props.stats?.currentCount ?? 0))}
+            </span>
+            <span class="index-coverage-pill">
+              {props.stats?.indexRatio ?? Math.min(100, Math.round(((props.stats?.currentCount ?? 0) / Math.max(props.stats?.totalPages ?? 1, 1)) * 100))}% indexed
+            </span>
           </div>
-          <div style={{ "font-size": '0.72rem', color: 'var(--text-muted)', "margin-top": '4px' }}>
-            Unique URLs with impressions · {props.stats?.windowDays || 28}d window
+          <div class="widget-index-progress-bar">
+            <div
+              class="widget-index-progress-fill"
+              style={{
+                width: `${Math.min(100, props.stats?.indexRatio ?? Math.round(((props.stats?.currentCount ?? 0) / Math.max(props.stats?.totalPages ?? 1, 1)) * 100))}%`
+              }}
+            />
+          </div>
+          <div style={{ "font-size": '0.72rem', color: 'var(--text-muted)', "margin-top": '6px' }}>
+            {formatNumber(props.stats?.currentCount ?? 0)} indexed out of {formatNumber(props.stats?.totalPages ?? props.stats?.currentCount ?? 0)} total pages · {props.stats?.windowDays || 28}d window
             <Show when={props.stats?.asOfDate}>
               <span> · as of {props.stats!.asOfDate}</span>
             </Show>
