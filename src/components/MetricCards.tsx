@@ -123,15 +123,15 @@ export const MetricCards: Component<MetricCardsProps> = (props) => {
       {/* Total Indexed Pages */}
       <div class="kpi-card" style={{ '--card-accent': '#38bdf8' }}>
         <div class="kpi-header">
-          <span class="kpi-title">Total Indexed Pages</span>
+          <span class="kpi-title">Portfolio Indexed Pages</span>
           <div class="kpi-icon-wrap" style={{ color: '#38bdf8' }}>
             <FileSearch size={18} />
           </div>
         </div>
-        <div class="kpi-value">
-          <span>{formatNumber(props.indexedPages || 0)}</span>
+        <div class="kpi-value" style={{ display: 'flex', "align-items": 'baseline', gap: '6px', "flex-wrap": 'wrap' }}>
+          <span style={{ color: '#38bdf8' }}>{formatNumber(props.indexedPages || 0)}</span>
           <Show when={(props.totalPages || 0) > 0}>
-            <span class="kpi-subvalue">/ {formatNumber(props.totalPages || 0)}</span>
+            <span class="kpi-subvalue">out of {formatNumber(props.totalPages || 0)} pages</span>
           </Show>
         </div>
         <div class="kpi-progress-bar">
@@ -142,11 +142,11 @@ export const MetricCards: Component<MetricCardsProps> = (props) => {
         </div>
         <div class="kpi-footer">
           <span class="trend-badge positive">
-            <span>{props.indexRatio ?? 0}%</span>
+            <span>{props.indexRatio ?? 0}% indexed</span>
           </span>
           <span class="trend-period">
             {props.indexedSitesCount !== undefined && props.totalSitesCount !== undefined
-              ? `${props.indexedSitesCount} of ${props.totalSitesCount} sites`
+              ? `${props.indexedSitesCount} of ${props.totalSitesCount} websites`
               : 'indexed coverage'}
           </span>
         </div>

@@ -287,7 +287,13 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
           {/* Indexed pages tracking + multi-window trends */}
           {siteData()?.indexStats && (
             <div class="index-detail-grid">
-              <IndexedPagesWidget stats={siteData()?.indexStats} />
+              <IndexedPagesWidget
+                stats={siteData()?.indexStats}
+                onUpdateTotalPages={async (newTotal: number) => {
+                  await api.updateSite(props.siteUrl, { total_pages: newTotal });
+                  refetch();
+                }}
+              />
               <IndexedPagesChart
                 timeline={siteData()?.indexStats?.timeline || []}
                 title="Indexed Pages Over Time"

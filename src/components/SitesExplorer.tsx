@@ -9,7 +9,8 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
-  RefreshCw
+  RefreshCw,
+  FileSearch
 } from 'lucide-solid';
 import { SiteProperty, Category } from '../types';
 
@@ -105,6 +106,17 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
         {isPositive ? '+' : ''}{pct}%
       </span>
     );
+  };
+
+  const getSiteTotalPages = (site: SiteProperty) => {
+    return Math.max(site.total_pages || 0, site.indexed_pages || 0);
+  };
+
+  const getSiteIndexRatio = (site: SiteProperty) => {
+    const total = getSiteTotalPages(site);
+    const indexed = site.indexed_pages || 0;
+    if (total === 0) return 0;
+    return Math.min(100, Math.round((indexed / total) * 1000) / 10);
   };
 
   return (
@@ -242,30 +254,54 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                     </span>
                   </div>
                   <div class="site-metric-item">
-                    <span class="lbl">Indexed / Total</span>
-                    <span class="val" style={{ color: '#38bdf8', "font-size": '0.86rem', display: 'flex', "align-items": 'baseline', "justify-content": 'center', gap: '2px' }}>
-                      <span>{formatNumber(site.indexed_pages)}</span>
-                      <span style={{ color: 'var(--text-muted)', "font-size": '0.74rem', "font-weight": 400 }}>
-                        / {formatNumber(site.total_pages || site.indexed_pages || 0)}
-                      </span>
+                    <span class="lbl">CTR</span>
+                    <span class="val" style={{ color: 'var(--color-success)' }}>
+                      {site.avg_ctr_28d || 0}%
                     </span>
-                    <div class="site-card-index-bar">
-                      <div
-                        class="site-card-index-fill"
-                        style={{
-                          width: `${Math.min(100, Math.round(((site.indexed_pages || 0) / Math.max(site.total_pages || site.indexed_pages || 1, 1)) * 100))}%`
-                        }}
-                        title={`${formatNumber(site.indexed_pages)} of ${formatNumber(site.total_pages || site.indexed_pages || 0)} indexed (${Math.min(100, Math.round(((site.indexed_pages || 0) / Math.max(site.total_pages || site.indexed_pages || 1, 1)) * 100))}%)`}
-                      />
-                    </div>
                   </div>
                   <div class="site-metric-item">
-                    <span class="lbl">7d / 30d</span>
-                    <span class="val" style={{ "font-size": '0.78rem', display: 'flex', gap: '6px', "justify-content": 'center' }}>
-                      {renderIndexChange(site.indexed_change_7d)}
-                      <span style={{ color: 'var(--text-muted)' }}>/</span>
-                      {renderIndexChange(site.indexed_change_30d)}
+                    <span class="lbl">Avg Pos</span>
+                    <span class="val" style={{ color: 'var(--color-warning)' }}>
+                      {site.avg_position_28d || 0}
                     </span>
+                  </div>
+                </div>
+
+                {/* Dedicated Prominent Indexation Status Section */}
+                <div class="site-card-index-box">
+                  <div class="site-card-index-top">
+                    <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                      <FileSearch size={13} color="#38bdf8" />
+                      <span class="site-card-index-heading">INDEXATION COVERAGE</span>
+                    </div>
+                    <div style={{ display: 'flex', "align-items": 'center', gap: '6px' }}>
+                      <span class="index-pct-pill">
+                        {getSiteIndexRatio(site)}% indexed
+                      </span>
+                      <Show when={site.indexed_change_7d !== undefined && site.indexed_change_7d !== null}>
+                        <span style={{ "font-size": '0.7rem', color: 'var(--text-muted)' }}>
+                          7d: {renderIndexChange(site.indexed_change_7d)}
+                        </span>
+                      </Show>
+                    </div>
+                  </div>
+
+                  <div class="site-card-index-number-row">
+                    <span class="site-card-index-current">{formatNumber(site.indexed_pages)}</span>
+                    <span class="site-card-index-out-of">out of</span>
+                    <span class="site-card-index-total">{formatNumber(getSiteTotalPages(site))}</span>
+                    <span class="site-card-index-label">pages</span>
+                    <Show when={!site.last_synced_at && (site.indexed_pages || 0) === 0}>
+                      <span class="site-card-unsynced-badge">Not synced yet</span>
+                    </Show>
+                  </div>
+
+                  <div class="site-card-index-bar">
+                    <div
+                      class="site-card-index-fill"
+                      style={{ width: `${getSiteIndexRatio(site)}%` }}
+                      title={`${formatNumber(site.indexed_pages)} of ${formatNumber(getSiteTotalPages(site))} pages indexed (${getSiteIndexRatio(site)}%)`}
+                    />
                   </div>
                 </div>
 
@@ -328,7 +364,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                 </th>
                 <th class="sortable-th" onClick={() => handleSort('indexed_pages')} title="Click to sort by indexed pages">
                   <div class="th-content">
-                    <span>Indexed / Total</span>
+                    <span>Indexed out of Total</span>
                     {renderSortIcon('indexed_pages')}
                   </div>
                 </th>
@@ -407,23 +443,23 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                     </td>
 
                     <td>
-                      <div style={{ display: 'flex', "flex-direction": 'column', gap: '3px' }}>
-                        <div style={{ display: 'flex', "align-items": 'center', gap: '5px' }}>
-                          <span style={{ "font-family": 'var(--font-heading)', "font-weight": 600, color: '#38bdf8' }}>
+                      <div style={{ display: 'flex', "flex-direction": 'column', gap: '3px', "min-width": '150px' }}>
+                        <div style={{ display: 'flex', "align-items": 'baseline', gap: '5px' }}>
+                          <span style={{ "font-family": 'var(--font-heading)', "font-weight": 700, color: '#38bdf8', "font-size": '0.88rem' }}>
                             {formatNumber(site.indexed_pages)}
                           </span>
-                          <span style={{ color: 'var(--text-muted)', "font-size": '0.74rem' }}>
-                            / {formatNumber(site.total_pages || site.indexed_pages || 0)}
+                          <span style={{ color: 'var(--text-secondary)', "font-size": '0.76rem' }}>
+                            out of {formatNumber(getSiteTotalPages(site))}
                           </span>
-                          <span class="index-pct-pill">
-                            {Math.min(100, Math.round(((site.indexed_pages || 0) / Math.max(site.total_pages || site.indexed_pages || 1, 1)) * 100))}%
+                          <span class="index-pct-pill" style={{ "margin-left": 'auto' }}>
+                            {getSiteIndexRatio(site)}%
                           </span>
                         </div>
                         <div class="table-index-bar">
                           <div
                             class="table-index-fill"
                             style={{
-                              width: `${Math.min(100, Math.round(((site.indexed_pages || 0) / Math.max(site.total_pages || site.indexed_pages || 1, 1)) * 100))}%`
+                              width: `${getSiteIndexRatio(site)}%`
                             }}
                           />
                         </div>

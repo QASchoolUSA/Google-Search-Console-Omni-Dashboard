@@ -191,14 +191,17 @@ export function selectSnapshotDatesToFetch(
 export function buildSiteIndexStats(
   snapshots: IndexSnapshotRow[],
   windowDays: number = INDEX_WINDOW_DAYS,
-  fallbackTotalPages: number = 0
+  fallbackTotalPages: number = 0,
+  fallbackIndexedPages: number = 0
 ): SiteIndexStats {
   if (!snapshots.length) {
-    const totalPages = Math.max(0, fallbackTotalPages);
+    const currentCount = Math.max(0, fallbackIndexedPages);
+    const totalPages = Math.max(0, fallbackTotalPages, currentCount);
+    const indexRatio = totalPages > 0 ? Math.round((currentCount / totalPages) * 1000) / 10 : (currentCount > 0 ? 100 : 0);
     return {
-      currentCount: 0,
+      currentCount,
       totalPages,
-      indexRatio: 0,
+      indexRatio,
       asOfDate: null,
       windowDays,
       isTruncated: false,
@@ -221,10 +224,10 @@ export function buildSiteIndexStats(
   const sorted = [...snapshots].sort((a, b) => a.date.localeCompare(b.date));
   const latest = sorted[sorted.length - 1];
 
-  const currentCount = latest.page_count;
+  const currentCount = Math.max(latest.page_count, fallbackIndexedPages);
   const snapshotTotal = Number(latest.total_pages || 0);
   const totalPages = Math.max(snapshotTotal, fallbackTotalPages, currentCount);
-  const indexRatio = totalPages > 0 ? Math.round((currentCount / totalPages) * 1000) / 10 : 0;
+  const indexRatio = totalPages > 0 ? Math.round((currentCount / totalPages) * 1000) / 10 : (currentCount > 0 ? 100 : 0);
 
   const trends: IndexTrendPoint[] = INDEX_TREND_WINDOWS.map((days) => {
     const prevDate = shiftDate(latest.date, -days);
@@ -297,14 +300,43 @@ export async function fetchSiteTotalPagesFromGsc(
     let totalSubmitted = 0;
 
     for (const sm of sitemaps) {
+      let foundInSm = 0;
       if (sm.contents && sm.contents.length > 0) {
         for (const c of sm.contents) {
           const sub = Number(c.submitted || 0);
           if (!isNaN(sub) && sub > 0) {
-            totalSubmitted += sub;
+            foundInSm += sub;
           }
         }
-      } else if (sm.isSitemapsIndex) {
+      }
+
+      // If contents array was omitted in list view, fetch specific sitemap details via sitemaps.get
+      if (foundInSm === 0 && !sm.isSitemapsIndex && sm.path) {
+        try {
+          const detailRes = await fetch(
+            `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/sitemaps/${encodeURIComponent(sm.path)}`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          if (detailRes.ok) {
+            const detailData = (await detailRes.json()) as {
+              contents?: Array<{ submitted?: string | number }>;
+            };
+            for (const c of detailData.contents || []) {
+              const sub = Number(c.submitted || 0);
+              if (!isNaN(sub) && sub > 0) {
+                foundInSm += sub;
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (sm.isSitemapsIndex) {
         try {
           const childRes = await fetch(
             `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/sitemaps?sitemapIndex=${encodeURIComponent(sm.path)}`,
@@ -325,7 +357,7 @@ export async function fetchSiteTotalPagesFromGsc(
               for (const c of childSm.contents || []) {
                 const sub = Number(c.submitted || 0);
                 if (!isNaN(sub) && sub > 0) {
-                  totalSubmitted += sub;
+                  foundInSm += sub;
                 }
               }
             }
@@ -334,6 +366,8 @@ export async function fetchSiteTotalPagesFromGsc(
           // Ignore child sitemap errors
         }
       }
+
+      totalSubmitted += foundInSm;
     }
 
     return { totalSubmitted, sitemapsCount: sitemaps.length };
@@ -343,8 +377,51 @@ export async function fetchSiteTotalPagesFromGsc(
 }
 
 /**
+ * Query GSC Search Analytics over the full 16-month window (480 days) for all unique pages ever served.
+ * Used as high-fidelity fallback when no sitemaps are submitted in GSC.
+ */
+export async function fetchHistoricalUniquePageCount(
+  accessToken: string,
+  siteUrl: string,
+  endDate?: string
+): Promise<number> {
+  const encodedSite = encodeURIComponent(siteUrl);
+  const end = endDate || new Date().toISOString().split('T')[0];
+  const start = shiftDate(end, -480);
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/searchAnalytics/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          startDate: start,
+          endDate: end,
+          dimensions: ['page'],
+          type: 'web',
+          aggregationType: 'byPage',
+          dataState: 'all',
+          rowLimit: 25000
+        })
+      }
+    );
+
+    if (!res.ok) return 0;
+    const data = (await res.json()) as { rows?: Array<{ keys: string[] }> };
+    return data.rows ? data.rows.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * Fallback: lightweight direct fetch of website's public sitemap.xml to count URLs.
- * Checks root domain, www/non-www alternate, and robots.txt Sitemap: directives.
+ * Checks root domain, WordPress core (/wp-sitemap.xml), index sitemaps (/sitemap_index.xml),
+ * www/non-www alternate, and robots.txt Sitemap: directives.
  */
 export async function fetchDirectSitemapUrlCount(siteUrl: string): Promise<number> {
   const parseSitemapXml = async (xmlText: string): Promise<number> => {
@@ -387,17 +464,30 @@ export async function fetchDirectSitemapUrlCount(siteUrl: string): Promise<numbe
     }
     cleanUrl = cleanUrl.replace(/\/+$/, '');
 
-    const candidates: string[] = [`${cleanUrl}/sitemap.xml`];
+    const candidatePaths = [
+      '/sitemap.xml',
+      '/sitemap_index.xml',
+      '/wp-sitemap.xml',
+      '/sitemap/'
+    ];
 
+    const hostnames = [cleanUrl];
     // Try www alternate
     try {
       const parsed = new URL(cleanUrl);
       if (parsed.hostname.startsWith('www.')) {
-        candidates.push(`${parsed.protocol}//${parsed.hostname.slice(4)}/sitemap.xml`);
+        hostnames.push(`${parsed.protocol}//${parsed.hostname.slice(4)}`);
       } else {
-        candidates.push(`${parsed.protocol}//www.${parsed.hostname}/sitemap.xml`);
+        hostnames.push(`${parsed.protocol}//www.${parsed.hostname}`);
       }
     } catch {}
+
+    const candidates: string[] = [];
+    for (const host of hostnames) {
+      for (const p of candidatePaths) {
+        candidates.push(`${host}${p}`);
+      }
+    }
 
     for (const url of candidates) {
       try {
@@ -446,4 +536,49 @@ export async function fetchDirectSitemapUrlCount(siteUrl: string): Promise<numbe
   } catch {
     return 0;
   }
+}
+
+/**
+ * Multi-tier total page discovery: GSC Sitemaps → Direct XML Probe → 16-Month Historical → Local DB.
+ * Guarantees every site gets a comprehensive, non-zero total page count whenever pages exist.
+ */
+export async function discoverSiteTotalPages(
+  accessToken: string,
+  siteUrl: string,
+  latestDate: string,
+  dbCount: number = 0
+): Promise<{ totalPages: number; source: string }> {
+  // 1. Try GSC Sitemaps API
+  let totalSubmitted = 0;
+  try {
+    const gscSm = await fetchSiteTotalPagesFromGsc(accessToken, siteUrl);
+    totalSubmitted = gscSm.totalSubmitted;
+  } catch {}
+
+  if (totalSubmitted > 0) {
+    return { totalPages: Math.max(totalSubmitted, dbCount), source: 'gsc_sitemaps' };
+  }
+
+  // 2. Try direct XML sitemap probe
+  let directCount = 0;
+  try {
+    directCount = await fetchDirectSitemapUrlCount(siteUrl);
+  } catch {}
+
+  if (directCount > 0) {
+    return { totalPages: Math.max(directCount, dbCount), source: 'direct_sitemap' };
+  }
+
+  // 3. Try GSC 16-month Search Analytics unique pages
+  let historicalPages = 0;
+  try {
+    historicalPages = await fetchHistoricalUniquePageCount(accessToken, siteUrl, latestDate);
+  } catch {}
+
+  if (historicalPages > 0) {
+    return { totalPages: Math.max(historicalPages, dbCount), source: 'gsc_historical' };
+  }
+
+  // 4. Fallback to local DB count
+  return { totalPages: dbCount, source: 'local_database' };
 }

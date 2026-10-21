@@ -105,4 +105,16 @@ if (statsWithSnapshotTotal.totalPages !== 100 || statsWithSnapshotTotal.indexRat
 }
 console.log('✓ PASS: totalPages and indexRatio calculations verified');
 
+// 8. Fallback indexed pages when snapshots are empty
+const fallbackEmpty = buildSiteIndexStats([], 28, 0, 142);
+if (fallbackEmpty.currentCount !== 142 || fallbackEmpty.totalPages !== 142 || fallbackEmpty.indexRatio !== 100) {
+  throw new Error(`FAIL: fallbackIndexedPages expected 142/142 (100%), got ${fallbackEmpty.currentCount}/${fallbackEmpty.totalPages} (${fallbackEmpty.indexRatio}%)`);
+}
+
+const fallbackWithHigherTotal = buildSiteIndexStats([], 28, 200, 142);
+if (fallbackWithHigherTotal.currentCount !== 142 || fallbackWithHigherTotal.totalPages !== 200 || fallbackWithHigherTotal.indexRatio !== 71) {
+  throw new Error(`FAIL: fallback with total 200 expected 142/200 (71%), got ${fallbackWithHigherTotal.currentCount}/${fallbackWithHigherTotal.totalPages} (${fallbackWithHigherTotal.indexRatio}%)`);
+}
+console.log('✓ PASS: fallbackIndexedPages and floor constraints verified');
+
 console.log('\nAll indexing tests passed.');

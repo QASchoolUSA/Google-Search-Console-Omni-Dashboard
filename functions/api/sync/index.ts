@@ -3,6 +3,7 @@ import { getSession } from '../../utils/google';
 import {
   INDEX_WINDOW_DAYS,
   countUniquePagesWithImpressions,
+  discoverSiteTotalPages,
   fetchDirectSitemapUrlCount,
   fetchSiteTotalPagesFromGsc,
   selectSnapshotDatesToFetch,
@@ -412,29 +413,25 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         }
 
         // 6. Indexed pages snapshots (unique pages with impressions — GSC visibility proxy)
-        // and total site pages (from GSC sitemaps, direct sitemap.xml, or discovered pages)
+        // and total site pages (from GSC sitemaps, direct XML sitemaps, 16-month history, or discovered pages)
         try {
-          // Discover total site pages count
-          let siteTotalPages = 0;
+          const pmCountRes = await env.DB.prepare(
+            'SELECT COUNT(DISTINCT page) as cnt FROM page_metrics WHERE site_url = ?'
+          ).bind(site.site_url).first<{ cnt: number }>();
+          const currentPmCount = pmCountRes?.cnt || 0;
+
+          // Discover total site pages count across all sources
+          let siteTotalPages = currentPmCount;
           try {
-            const gscSitemaps = await fetchSiteTotalPagesFromGsc(session.access_token, site.site_url);
-            siteTotalPages = gscSitemaps.totalSubmitted;
+            const discovery = await discoverSiteTotalPages(
+              session.access_token,
+              site.site_url,
+              latestGscDate,
+              currentPmCount
+            );
+            siteTotalPages = discovery.totalPages;
           } catch (e: any) {
-            console.warn(`GSC Sitemaps check failed for ${site.site_url}:`, e?.message);
-          }
-
-          if (siteTotalPages <= 0) {
-            try {
-              siteTotalPages = await fetchDirectSitemapUrlCount(site.site_url);
-            } catch (e: any) {
-              console.warn(`Direct sitemap.xml check failed for ${site.site_url}:`, e?.message);
-            }
-          }
-
-          if (siteTotalPages <= 0) {
-            const pmCount = await env.DB.prepare('SELECT COUNT(DISTINCT page) as cnt FROM page_metrics WHERE site_url = ?')
-              .bind(site.site_url).first<{ cnt: number }>();
-            siteTotalPages = pmCount?.cnt || 0;
+            console.warn(`Total pages discovery failed for ${site.site_url}:`, e?.message);
           }
 
           const { results: existingSnapRows } = await env.DB.prepare(
@@ -486,7 +483,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
             }
           }
 
-          const finalTotal = Math.max(siteTotalPages, latestPageCount);
+          const finalTotal = Math.max(siteTotalPages, latestPageCount, currentPmCount);
           if (finalTotal > 0) {
             await env.DB.prepare('UPDATE properties SET total_pages = ? WHERE site_url = ?')
               .bind(finalTotal, site.site_url).run();

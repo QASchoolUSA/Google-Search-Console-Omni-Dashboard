@@ -49,7 +49,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         ORDER BY date ASC
       `).bind(siteUrl, INDEX_WINDOW_DAYS).all<IndexSnapshotRow>();
 
-      const stats = buildSiteIndexStats(results || [], INDEX_WINDOW_DAYS, propRow?.total_pages || 0);
+      const pmRes = await env.DB.prepare(
+        'SELECT COUNT(DISTINCT page) as cnt FROM page_metrics WHERE site_url = ?'
+      ).bind(siteUrl).first<{ cnt: number }>();
+      const pmCount = pmRes?.cnt || 0;
+
+      const stats = buildSiteIndexStats(results || [], INDEX_WINDOW_DAYS, propRow?.total_pages || 0, pmCount);
       return new Response(JSON.stringify({
         siteUrl,
         ...stats,
@@ -59,6 +64,19 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       });
     }
 
+    // Pre-aggregate distinct pages per site from page_metrics
+    const pmMap = new Map<string, number>();
+    try {
+      const { results: pmRows } = await env.DB.prepare(`
+        SELECT site_url, COUNT(DISTINCT page) as pm_count
+        FROM page_metrics
+        GROUP BY site_url
+      `).all<{ site_url: string; pm_count: number }>();
+      for (const r of pmRows || []) {
+        pmMap.set(r.site_url, Number(r.pm_count || 0));
+      }
+    } catch {}
+
     // All-sites summary: latest snapshot + lookback counts for trend windows
     const { results: props } = await env.DB.prepare(`
       SELECT site_url, display_name, COALESCE(total_pages, 0) as total_pages FROM properties ORDER BY display_name ASC
@@ -66,6 +84,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
     const sites = [];
     for (const p of props || []) {
+      const pmCount = pmMap.get(p.site_url) || 0;
       const { results: snaps } = await env.DB.prepare(`
         SELECT date, page_count, total_pages, window_days, is_truncated
         FROM index_snapshots
@@ -73,8 +92,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         ORDER BY date ASC
       `).bind(p.site_url, INDEX_WINDOW_DAYS).all<IndexSnapshotRow>();
 
-      const stats = buildSiteIndexStats(snaps || [], INDEX_WINDOW_DAYS, p.total_pages);
-      const siteTotal = Math.max(p.total_pages || 0, stats.totalPages, stats.currentCount);
+      const stats = buildSiteIndexStats(snaps || [], INDEX_WINDOW_DAYS, p.total_pages, pmCount);
+      const siteTotal = Math.max(p.total_pages || 0, stats.totalPages, stats.currentCount, pmCount);
       const ratio = siteTotal > 0 ? Math.round((stats.currentCount / siteTotal) * 1000) / 10 : 0;
 
       sites.push({

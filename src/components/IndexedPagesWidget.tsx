@@ -1,15 +1,30 @@
-import { Component, For, Show } from 'solid-js';
-import { FileSearch, TrendingUp, TrendingDown, Minus } from 'lucide-solid';
+import { Component, For, Show, createSignal } from 'solid-js';
+import { FileSearch, TrendingUp, TrendingDown, Minus, Edit2, Check, X } from 'lucide-solid';
 import { SiteIndexStats, IndexTrendPoint } from '../types';
 
 interface IndexedPagesWidgetProps {
   stats?: SiteIndexStats | null;
   compact?: boolean;
+  onUpdateTotalPages?: (newTotal: number) => Promise<void>;
 }
 
 const TREND_ORDER = [3, 7, 14, 30, 60] as const;
 
 export const IndexedPagesWidget: Component<IndexedPagesWidgetProps> = (props) => {
+  const [isEditingTotal, setIsEditingTotal] = createSignal(false);
+  const [editTotalValue, setEditTotalValue] = createSignal<number>(props.stats?.totalPages ?? 0);
+  const [isSaving, setIsSaving] = createSignal(false);
+
+  const handleSaveTotal = async () => {
+    if (!props.onUpdateTotalPages) return;
+    const val = Number(editTotalValue());
+    if (isNaN(val) || val < 0) return;
+    setIsSaving(true);
+    await props.onUpdateTotalPages(val);
+    setIsSaving(false);
+    setIsEditingTotal(false);
+  };
+
   const formatNumber = (n?: number | null) => {
     if (n === null || n === undefined) return '—';
     if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
@@ -76,9 +91,58 @@ export const IndexedPagesWidget: Component<IndexedPagesWidgetProps> = (props) =>
             <span style={{ "font-family": 'var(--font-heading)', "font-size": props.compact ? '1.6rem' : '2.1rem', "font-weight": 700, color: '#38bdf8', "line-height": 1.1 }}>
               {formatNumber(props.stats?.currentCount ?? 0)}
             </span>
-            <span style={{ "font-size": props.compact ? '1rem' : '1.2rem', color: 'var(--text-secondary)', "font-weight": 500 }}>
-              / {formatNumber(props.stats?.totalPages ?? (props.stats?.currentCount ?? 0))}
-            </span>
+            <Show when={!isEditingTotal()}>
+              <span style={{ "font-size": props.compact ? '1rem' : '1.2rem', color: 'var(--text-secondary)', "font-weight": 500, display: 'inline-flex', "align-items": 'center', gap: '4px' }}>
+                out of {formatNumber(props.stats?.totalPages ?? (props.stats?.currentCount ?? 0))}
+                <Show when={props.onUpdateTotalPages}>
+                  <button
+                    onClick={() => {
+                      setEditTotalValue(props.stats?.totalPages ?? (props.stats?.currentCount ?? 0));
+                      setIsEditingTotal(true);
+                    }}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'inline-flex' }}
+                    title="Manually adjust total website pages"
+                  >
+                    <Edit2 size={13} />
+                  </button>
+                </Show>
+              </span>
+            </Show>
+            <Show when={isEditingTotal()}>
+              <div style={{ display: 'inline-flex', "align-items": 'center', gap: '4px' }}>
+                <span style={{ "font-size": '0.9rem', color: 'var(--text-secondary)' }}>out of</span>
+                <input
+                  type="number"
+                  min="0"
+                  class="form-input"
+                  style={{ width: '85px', padding: '2px 6px', "font-size": '0.85rem', height: '26px' }}
+                  value={editTotalValue()}
+                  onInput={(e) => setEditTotalValue(parseInt(e.currentTarget.value, 10) || 0)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveTotal();
+                    if (e.key === 'Escape') setIsEditingTotal(false);
+                  }}
+                  autofocus
+                />
+                <button
+                  class="btn btn-primary"
+                  style={{ padding: '2px 6px', height: '26px' }}
+                  onClick={handleSaveTotal}
+                  disabled={isSaving()}
+                  title="Save total pages"
+                >
+                  <Check size={12} />
+                </button>
+                <button
+                  class="btn btn-outline"
+                  style={{ padding: '2px 6px', height: '26px' }}
+                  onClick={() => setIsEditingTotal(false)}
+                  title="Cancel"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            </Show>
             <span class="index-coverage-pill">
               {props.stats?.indexRatio ?? Math.min(100, Math.round(((props.stats?.currentCount ?? 0) / Math.max(props.stats?.totalPages ?? 1, 1)) * 100))}% indexed
             </span>

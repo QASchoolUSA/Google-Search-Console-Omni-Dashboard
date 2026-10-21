@@ -80,9 +80,23 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
 
     const properties = results || [];
 
+    // Pre-aggregate distinct pages per site from page_metrics for instantaneous fallback
+    const pmMap = new Map<string, number>();
+    try {
+      const { results: pmRows } = await env.DB.prepare(`
+        SELECT site_url, COUNT(DISTINCT page) as pm_count
+        FROM page_metrics
+        GROUP BY site_url
+      `).all<{ site_url: string; pm_count: number }>();
+      for (const r of pmRows || []) {
+        pmMap.set(r.site_url, Number(r.pm_count || 0));
+      }
+    } catch {}
+
     // Attach indexed-pages current count + multi-window trends for each site
     const enriched = [];
     for (const prop of properties) {
+      const pmCount = pmMap.get(prop.site_url) || 0;
       const { results: snaps } = await env.DB.prepare(`
         SELECT date, page_count, total_pages, window_days, is_truncated
         FROM index_snapshots
@@ -90,8 +104,33 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         ORDER BY date ASC
       `).bind(prop.site_url, INDEX_WINDOW_DAYS).all<IndexSnapshotRow>();
 
-      const stats = buildSiteIndexStats(snaps || [], INDEX_WINDOW_DAYS, prop.total_pages || 0);
-      const totalPages = Math.max(prop.total_pages || 0, stats.totalPages, stats.currentCount);
+      const stats = buildSiteIndexStats(snaps || [], INDEX_WINDOW_DAYS, prop.total_pages || 0, pmCount);
+      const indexedPages = stats.currentCount;
+      const totalPages = Math.max(prop.total_pages || 0, stats.totalPages, indexedPages, pmCount);
+
+      // Persist discovered total_pages to DB if not set
+      if (totalPages > (prop.total_pages || 0)) {
+        try {
+          await env.DB.prepare('UPDATE properties SET total_pages = ? WHERE site_url = ?')
+            .bind(totalPages, prop.site_url).run();
+        } catch {}
+      }
+
+      // Seed an initial snapshot if table had no rows for this site but pages exist
+      if ((!snaps || snaps.length === 0) && indexedPages > 0) {
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const snapId = `${prop.site_url}_idx_${today}_${INDEX_WINDOW_DAYS}`;
+          await env.DB.prepare(`
+            INSERT INTO index_snapshots (id, site_url, date, page_count, total_pages, window_days, is_truncated)
+            VALUES (?, ?, ?, ?, ?, ?, 0)
+            ON CONFLICT(site_url, date, window_days) DO UPDATE SET
+              page_count = excluded.page_count,
+              total_pages = excluded.total_pages
+          `).bind(snapId, prop.site_url, today, indexedPages, totalPages, INDEX_WINDOW_DAYS).run();
+        } catch {}
+      }
+
       const trendMap: Record<string, number | null> = {};
       for (const t of stats.trends) {
         trendMap[`indexed_change_${t.days}d`] = t.changePct;
@@ -100,7 +139,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       enriched.push({
         ...prop,
         total_pages: totalPages,
-        indexed_pages: stats.currentCount,
+        indexed_pages: indexedPages,
         indexed_as_of: stats.asOfDate,
         indexed_truncated: stats.isTruncated ? 1 : 0,
         ...trendMap,

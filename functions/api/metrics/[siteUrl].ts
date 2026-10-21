@@ -163,7 +163,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
         ORDER BY date ASC
       `).bind(siteUrl, INDEX_WINDOW_DAYS).all<IndexSnapshotRow>();
 
-      indexStats = buildSiteIndexStats(indexSnaps || [], INDEX_WINDOW_DAYS, propTotal);
+      const pmCountRes = await env.DB.prepare(
+        'SELECT COUNT(DISTINCT page) as cnt FROM page_metrics WHERE site_url = ?'
+      ).bind(siteUrl).first<{ cnt: number }>();
+      const pmCount = pmCountRes?.cnt || 0;
+
+      indexStats = buildSiteIndexStats(indexSnaps || [], INDEX_WINDOW_DAYS, propTotal, pmCount);
     } catch (indexErr) {
       console.warn('Indexed pages lookup failed', indexErr);
     }

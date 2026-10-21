@@ -174,10 +174,10 @@ export const App: Component = () => {
   };
 
   const portfolioIndexed = () => filteredProperties().reduce((acc, p) => acc + (p.indexed_pages || 0), 0);
-  const portfolioTotal = () => filteredProperties().reduce((acc, p) => acc + (p.total_pages || p.indexed_pages || 0), 0);
+  const portfolioTotal = () => filteredProperties().reduce((acc, p) => acc + Math.max(p.total_pages || 0, p.indexed_pages || 0), 0);
   const portfolioRatio = () => {
     const tot = portfolioTotal();
-    return tot > 0 ? Math.round((portfolioIndexed() / tot) * 1000) / 10 : 0;
+    return tot > 0 ? Math.min(100, Math.round((portfolioIndexed() / tot) * 1000) / 10) : 0;
   };
 
   return (
