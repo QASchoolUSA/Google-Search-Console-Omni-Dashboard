@@ -329,10 +329,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
             `).bind(id, site.site_url, page, queryEndDate, row.clicks, row.impressions, ctr, pos).run();
           }
         }
-                position = excluded.position
-            `).bind(id, site.site_url, page, queryEndDate, row.clicks, row.impressions, ctr, pos).run();
-          }
-        }
 
         // 4. Fetch device breakdown
         const deviceRes = await fetch(
