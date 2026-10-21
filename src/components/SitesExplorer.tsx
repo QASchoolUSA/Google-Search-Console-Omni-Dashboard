@@ -12,7 +12,7 @@ import {
 } from 'lucide-solid';
 import { SiteProperty, Category } from '../types';
 
-type SiteSortField = 'display_name' | 'category_name' | 'total_clicks_28d' | 'total_impressions_28d' | 'avg_ctr_28d' | 'avg_position_28d' | 'last_synced_at';
+type SiteSortField = 'display_name' | 'category_name' | 'total_clicks_28d' | 'total_impressions_28d' | 'avg_ctr_28d' | 'avg_position_28d' | 'indexed_pages' | 'last_synced_at';
 type SortDirection = 'asc' | 'desc';
 
 interface SitesExplorerProps {
@@ -88,6 +88,20 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
     if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
     if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
     return n.toLocaleString();
+  };
+
+  const renderIndexChange = (pct?: number | null) => {
+    if (pct === null || pct === undefined) {
+      return <span style={{ color: 'var(--text-muted)', "font-size": '0.7rem' }}>—</span>;
+    }
+    const isZero = pct === 0;
+    const isPositive = pct > 0;
+    const color = isZero ? 'var(--text-muted)' : isPositive ? 'var(--color-success)' : 'var(--color-danger)';
+    return (
+      <span style={{ color, "font-size": '0.72rem', "font-weight": 600 }}>
+        {isPositive ? '+' : ''}{pct}%
+      </span>
+    );
   };
 
   return (
@@ -206,15 +220,17 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                     </span>
                   </div>
                   <div class="site-metric-item">
-                    <span class="lbl">CTR</span>
-                    <span class="val" style={{ color: 'var(--color-success)' }}>
-                      {site.avg_ctr_28d}%
+                    <span class="lbl">Indexed</span>
+                    <span class="val" style={{ color: '#38bdf8' }}>
+                      {formatNumber(site.indexed_pages)}
                     </span>
                   </div>
                   <div class="site-metric-item">
-                    <span class="lbl">Avg Pos</span>
-                    <span class="val" style={{ color: 'var(--color-warning)' }}>
-                      {site.avg_position_28d}
+                    <span class="lbl">7d / 30d</span>
+                    <span class="val" style={{ "font-size": '0.78rem', display: 'flex', gap: '6px', "justify-content": 'center' }}>
+                      {renderIndexChange(site.indexed_change_7d)}
+                      <span style={{ color: 'var(--text-muted)' }}>/</span>
+                      {renderIndexChange(site.indexed_change_30d)}
                     </span>
                   </div>
                 </div>
@@ -276,6 +292,13 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                     {renderSortIcon('avg_position_28d')}
                   </div>
                 </th>
+                <th class="sortable-th" onClick={() => handleSort('indexed_pages')} title="Click to sort by indexed pages">
+                  <div class="th-content">
+                    <span>Indexed</span>
+                    {renderSortIcon('indexed_pages')}
+                  </div>
+                </th>
+                <th title="Indexed pages change vs 3 / 7 / 14 / 30 / 60 days ago">Index Trends</th>
                 <th>Status</th>
                 <th class="sortable-th" onClick={() => handleSort('last_synced_at')} title="Click to sort by last sync timestamp">
                   <div class="th-content">
@@ -347,6 +370,20 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
 
                     <td style={{ color: 'var(--color-warning)', "font-weight": 600 }}>
                       {site.avg_position_28d}
+                    </td>
+
+                    <td style={{ "font-family": 'var(--font-heading)', "font-weight": 600, color: '#38bdf8' }}>
+                      {formatNumber(site.indexed_pages)}
+                    </td>
+
+                    <td>
+                      <div style={{ display: 'flex', "flex-wrap": 'wrap', gap: '4px 8px', "font-size": '0.7rem' }}>
+                        <span title="3 days">3d {renderIndexChange(site.indexed_change_3d)}</span>
+                        <span title="7 days">7d {renderIndexChange(site.indexed_change_7d)}</span>
+                        <span title="14 days">14d {renderIndexChange(site.indexed_change_14d)}</span>
+                        <span title="30 days">30d {renderIndexChange(site.indexed_change_30d)}</span>
+                        <span title="60 days">60d {renderIndexChange(site.indexed_change_60d)}</span>
+                      </div>
                     </td>
 
                     <td>

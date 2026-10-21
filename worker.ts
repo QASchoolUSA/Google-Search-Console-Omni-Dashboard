@@ -26,6 +26,7 @@ import {
 import { onRequestPost as syncGsc } from './functions/api/sync/index';
 import { onRequestGet as getAggregateMetrics } from './functions/api/metrics/aggregate';
 import { onRequestGet as getSiteMetrics } from './functions/api/metrics/[siteUrl]';
+import { onRequestGet as getIndexingMetrics } from './functions/api/metrics/indexing';
 import { onRequestGet as auditSite } from './functions/api/audit/[siteUrl]';
 
 export interface WorkerEnv extends Env {
@@ -93,6 +94,10 @@ export default {
       // 5. Metrics routes
       if (path === '/api/metrics/aggregate' && method === 'GET') {
         return await getAggregateMetrics(makeContext() as any);
+      }
+
+      if (path === '/api/metrics/indexing' && method === 'GET') {
+        return await getIndexingMetrics(makeContext() as any);
       }
 
       const metricSiteMatch = path.match(/^\/api\/metrics\/([^/]+)$/);

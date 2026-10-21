@@ -90,9 +90,24 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Daily snapshots of unique pages with search impressions (GSC indexed-visibility proxy).
+-- page_count = distinct URLs with ≥1 impression in a rolling window ending on `date`.
+CREATE TABLE IF NOT EXISTS index_snapshots (
+  id TEXT PRIMARY KEY,
+  site_url TEXT NOT NULL REFERENCES properties(site_url) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  page_count INTEGER NOT NULL DEFAULT 0,
+  window_days INTEGER NOT NULL DEFAULT 28,
+  is_truncated INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(site_url, date, window_days)
+);
+
 -- Indexes for lightning fast aggregations across sites & categories
 CREATE INDEX IF NOT EXISTS idx_daily_metrics_date ON daily_metrics(date);
 CREATE INDEX IF NOT EXISTS idx_daily_metrics_site ON daily_metrics(site_url);
 CREATE INDEX IF NOT EXISTS idx_query_metrics_site ON query_metrics(site_url);
 CREATE INDEX IF NOT EXISTS idx_page_metrics_site ON page_metrics(site_url);
 CREATE INDEX IF NOT EXISTS idx_properties_category ON properties(category_id);
+CREATE INDEX IF NOT EXISTS idx_index_snapshots_site_date ON index_snapshots(site_url, date);
+CREATE INDEX IF NOT EXISTS idx_index_snapshots_date ON index_snapshots(date);

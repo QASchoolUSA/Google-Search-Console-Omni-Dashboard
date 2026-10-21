@@ -7,7 +7,9 @@ import {
   UserAuthStatus, 
   AggregateData, 
   AuditResult,
-  SiteDetailsResponse
+  SiteDetailsResponse,
+  IndexingPortfolioResponse,
+  SiteIndexStats
 } from '../types';
 
 export * from '../types';
@@ -183,6 +185,30 @@ class ApiService {
       }
     } catch (e) {
       console.error('Audit API failed', e);
+    }
+    return null;
+  }
+
+  async getIndexingPortfolio(): Promise<IndexingPortfolioResponse | null> {
+    try {
+      const res = await fetch('/api/metrics/indexing');
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('API getIndexingPortfolio failed', e);
+    }
+    return null;
+  }
+
+  async getSiteIndexStats(siteUrl: string): Promise<SiteIndexStats | null> {
+    try {
+      const res = await fetch(`/api/metrics/indexing?site_url=${encodeURIComponent(siteUrl)}`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('API getSiteIndexStats failed', e);
     }
     return null;
   }

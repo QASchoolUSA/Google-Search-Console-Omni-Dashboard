@@ -1,5 +1,12 @@
 import { Env } from '../../types';
 import { getSession } from '../../utils/google';
+import {
+  INDEX_WINDOW_DAYS,
+  countUniquePagesWithImpressions,
+  selectSnapshotDatesToFetch,
+  shiftDate,
+  windowStart
+} from '../../utils/indexing';
 
 interface GSCRow {
   keys: string[];
@@ -22,6 +29,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const body = await request.json().catch(() => ({})) as { site_url?: string; days?: number };
     // Default to fetching last 90 days to provide historical comparison data
     const days = Math.max(body.days || 60, 60);
+
+    // Ensure indexed-pages snapshot table exists (safe for older D1 schemas)
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS index_snapshots (
+        id TEXT PRIMARY KEY,
+        site_url TEXT NOT NULL,
+        date TEXT NOT NULL,
+        page_count INTEGER NOT NULL DEFAULT 0,
+        window_days INTEGER NOT NULL DEFAULT 28,
+        is_truncated INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(site_url, date, window_days)
+      )
+    `).run();
+    await env.DB.prepare(
+      'CREATE INDEX IF NOT EXISTS idx_index_snapshots_site_date ON index_snapshots(site_url, date)'
+    ).run();
 
     // 1. Automatically discover & import verified properties from GSC
     try {
@@ -310,7 +334,54 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           }
         }
 
-        // 6. Update site last_synced_at
+        // 6. Indexed pages snapshots (unique pages with impressions — GSC visibility proxy)
+        try {
+          const { results: existingSnapRows } = await env.DB.prepare(
+            `SELECT date FROM index_snapshots
+             WHERE site_url = ? AND window_days = ? AND date >= ? AND date <= ?`
+          ).bind(
+            site.site_url,
+            INDEX_WINDOW_DAYS,
+            shiftDate(latestGscDate, -59),
+            latestGscDate
+          ).all<{ date: string }>();
+
+          const existingDates = new Set((existingSnapRows || []).map((r) => r.date));
+          const datesToFetch = selectSnapshotDatesToFetch(latestGscDate, existingDates);
+
+          for (const snapDate of datesToFetch) {
+            const snapStart = windowStart(snapDate, INDEX_WINDOW_DAYS);
+            try {
+              const { count, isTruncated } = await countUniquePagesWithImpressions(
+                session.access_token,
+                site.site_url,
+                snapStart,
+                snapDate
+              );
+              const snapId = `${site.site_url}_idx_${snapDate}_${INDEX_WINDOW_DAYS}`;
+              await env.DB.prepare(`
+                INSERT INTO index_snapshots (id, site_url, date, page_count, window_days, is_truncated)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(site_url, date, window_days) DO UPDATE SET
+                  page_count = excluded.page_count,
+                  is_truncated = excluded.is_truncated
+              `).bind(
+                snapId,
+                site.site_url,
+                snapDate,
+                count,
+                INDEX_WINDOW_DAYS,
+                isTruncated ? 1 : 0
+              ).run();
+            } catch (snapErr: any) {
+              console.warn(`Index snapshot failed for ${site.site_url} @ ${snapDate}:`, snapErr?.message);
+            }
+          }
+        } catch (indexErr: any) {
+          console.warn(`Indexed-pages sync skipped for ${site.site_url}:`, indexErr?.message);
+        }
+
+        // 7. Update site last_synced_at
         await env.DB.prepare('UPDATE properties SET last_synced_at = CURRENT_TIMESTAMP WHERE site_url = ?')
           .bind(site.site_url).run();
 

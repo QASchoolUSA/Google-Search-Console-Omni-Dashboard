@@ -28,6 +28,25 @@ export interface Category {
   site_count?: number;
 }
 
+export type IndexTrendWindow = 3 | 7 | 14 | 30 | 60;
+
+export interface IndexTrendPoint {
+  days: IndexTrendWindow;
+  previousCount: number | null;
+  change: number | null;
+  changePct: number | null;
+  previousDate: string | null;
+}
+
+export interface SiteIndexStats {
+  currentCount: number;
+  asOfDate: string | null;
+  windowDays: number;
+  isTruncated: boolean;
+  trends: IndexTrendPoint[];
+  timeline: { date: string; page_count: number }[];
+}
+
 export interface SiteProperty {
   id: string;
   site_url: string;
@@ -42,6 +61,15 @@ export interface SiteProperty {
   total_impressions_28d?: number;
   avg_ctr_28d?: number;
   avg_position_28d?: number;
+  indexed_pages?: number;
+  indexed_as_of?: string | null;
+  indexed_truncated?: number;
+  indexed_change_3d?: number | null;
+  indexed_change_7d?: number | null;
+  indexed_change_14d?: number | null;
+  indexed_change_30d?: number | null;
+  indexed_change_60d?: number | null;
+  indexed_trends?: IndexTrendPoint[];
 }
 
 export interface DailyMetric {
