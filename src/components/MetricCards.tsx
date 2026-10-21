@@ -1,9 +1,10 @@
-import { Component } from 'solid-js';
+import { Component, Show } from 'solid-js';
 import { 
   MousePointerClick, 
   Eye, 
   Percent, 
   Award, 
+  FileSearch,
   TrendingUp, 
   TrendingDown, 
   Minus 
@@ -13,6 +14,11 @@ import { AggregateData } from '../services/api';
 interface MetricCardsProps {
   data: AggregateData | null;
   days: number;
+  indexedPages?: number;
+  totalPages?: number;
+  indexRatio?: number;
+  indexedSitesCount?: number;
+  totalSitesCount?: number;
 }
 
 export const MetricCards: Component<MetricCardsProps> = (props) => {
@@ -111,6 +117,38 @@ export const MetricCards: Component<MetricCardsProps> = (props) => {
         <div class="kpi-footer">
           {renderTrend(props.data?.positionChange || 0, true)}
           <span class="trend-period">rank improvement</span>
+        </div>
+      </div>
+
+      {/* Total Indexed Pages */}
+      <div class="kpi-card" style={{ '--card-accent': '#38bdf8' }}>
+        <div class="kpi-header">
+          <span class="kpi-title">Total Indexed Pages</span>
+          <div class="kpi-icon-wrap" style={{ color: '#38bdf8' }}>
+            <FileSearch size={18} />
+          </div>
+        </div>
+        <div class="kpi-value">
+          <span>{formatNumber(props.indexedPages || 0)}</span>
+          <Show when={(props.totalPages || 0) > 0}>
+            <span class="kpi-subvalue">/ {formatNumber(props.totalPages || 0)}</span>
+          </Show>
+        </div>
+        <div class="kpi-progress-bar">
+          <div
+            class="kpi-progress-fill"
+            style={{ width: `${Math.min(100, props.indexRatio ?? 0)}%` }}
+          />
+        </div>
+        <div class="kpi-footer">
+          <span class="trend-badge positive">
+            <span>{props.indexRatio ?? 0}%</span>
+          </span>
+          <span class="trend-period">
+            {props.indexedSitesCount !== undefined && props.totalSitesCount !== undefined
+              ? `${props.indexedSitesCount} of ${props.totalSitesCount} sites`
+              : 'indexed coverage'}
+          </span>
         </div>
       </div>
     </div>

@@ -283,6 +283,11 @@ export const App: Component = () => {
         <MetricCards
           data={aggregateData()}
           days={days()}
+          indexedPages={portfolioIndexed()}
+          totalPages={portfolioTotal()}
+          indexRatio={portfolioRatio()}
+          indexedSitesCount={filteredProperties().filter((p) => (p.indexed_pages || 0) > 0).length}
+          totalSitesCount={filteredProperties().length}
         />
 
         {/* Primary Chart Row: Dual-Axis Performance Timeline + Category Share Donut */}
@@ -307,32 +312,6 @@ export const App: Component = () => {
 
         {/* Generative AI & AI Overviews Analytics Widget */}
         <GenAiMetricsWidget data={aggregateData()?.aiMetrics} />
-
-        {/* Portfolio indexed-pages rollup: Total indexed and out of how many across all sites */}
-        <Show when={filteredProperties().length > 0}>
-          <div class="indexed-portfolio-bar">
-            <div>
-              <div class="indexed-portfolio-label">Portfolio Indexation Coverage</div>
-              <div class="indexed-portfolio-value">
-                <span>{portfolioIndexed().toLocaleString()}</span>
-                <span class="indexed-portfolio-total-sep">/</span>
-                <span class="indexed-portfolio-total-val">{portfolioTotal().toLocaleString()}</span>
-                <span class="indexed-portfolio-pct-badge">{portfolioRatio()}% indexed</span>
-              </div>
-              <div class="indexed-portfolio-hint">
-                {portfolioIndexed().toLocaleString()} indexed pages out of {portfolioTotal().toLocaleString()} total pages across {filteredProperties().length} properties ({days()}d window). Open any site to inspect keyword queries and trends.
-              </div>
-            </div>
-            <div class="indexed-portfolio-right">
-              <div class="indexed-portfolio-progress-bar">
-                <div class="indexed-portfolio-progress-fill" style={{ width: `${Math.min(100, portfolioRatio())}%` }} />
-              </div>
-              <div class="indexed-portfolio-sites">
-                {filteredProperties().filter((p) => (p.indexed_pages || 0) > 0).length} of {filteredProperties().length} sites indexed
-              </div>
-            </div>
-          </div>
-        </Show>
 
         {/* Monitored Properties Portfolio Explorer (Grid / Table) */}
         <SitesExplorer
