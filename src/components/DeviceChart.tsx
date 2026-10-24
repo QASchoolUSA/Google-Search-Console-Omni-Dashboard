@@ -1,6 +1,8 @@
 import { Component, onMount, onCleanup, createEffect } from 'solid-js';
 import * as echarts from 'echarts';
 import { Smartphone } from 'lucide-solid';
+import { useTheme } from '../utils/theme';
+import { getChartThemeTokens } from '../utils/chartTheme';
 
 interface DeviceItem {
   device: string;
@@ -14,6 +16,7 @@ interface DeviceChartProps {
 }
 
 export const DeviceChart: Component<DeviceChartProps> = (props) => {
+  const { theme } = useTheme();
   let containerRef!: HTMLDivElement;
   let chartInstance: echarts.ECharts | null = null;
 
@@ -33,6 +36,7 @@ export const DeviceChart: Component<DeviceChartProps> = (props) => {
   createEffect(() => {
     if (!chartInstance) return;
 
+    const t = getChartThemeTokens(theme());
     const items = props.data || [];
     const colors: Record<string, string> = {
       Mobile: '#06b6d4',
@@ -43,19 +47,19 @@ export const DeviceChart: Component<DeviceChartProps> = (props) => {
     const pieData = items.map(item => ({
       name: item.device,
       value: item.clicks,
-      itemStyle: { color: colors[item.device] || '#94a3b8' }
+      itemStyle: { color: colors[item.device] || t.mutedTextColor }
     }));
 
     const option: echarts.EChartsOption = {
       backgroundColor: 'transparent',
       tooltip: {
         trigger: 'item',
-        backgroundColor: '#0f172a',
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        textStyle: { color: '#ffffff', fontSize: 12 },
+        backgroundColor: t.tooltipBg,
+        borderColor: t.tooltipBorder,
+        textStyle: { color: t.tooltipText, fontSize: 12 },
         formatter: (params: any) => `
-          <div style="font-weight:600;color:#fff">${params.name}</div>
-          <div style="color:#94a3b8">Clicks: <strong style="color:#06b6d4">${params.value.toLocaleString()}</strong> (${params.percent}%)</div>
+          <div style="font-weight:600;color:${t.textColor}">${params.name}</div>
+          <div style="color:${t.subTextColor}">Clicks: <strong style="color:#06b6d4">${params.value.toLocaleString()}</strong> (${params.percent}%)</div>
         `
       },
       legend: {
@@ -63,7 +67,7 @@ export const DeviceChart: Component<DeviceChartProps> = (props) => {
         itemWidth: 10,
         itemHeight: 10,
         icon: 'circle',
-        textStyle: { color: '#94a3b8', fontSize: 11 }
+        textStyle: { color: t.subTextColor, fontSize: 11 }
       },
       series: [
         {
@@ -72,7 +76,7 @@ export const DeviceChart: Component<DeviceChartProps> = (props) => {
           center: ['50%', '45%'],
           itemStyle: {
             borderRadius: 6,
-            borderColor: '#0f172a',
+            borderColor: t.isDark ? '#0f172a' : '#ffffff',
             borderWidth: 2
           },
           label: { show: false },

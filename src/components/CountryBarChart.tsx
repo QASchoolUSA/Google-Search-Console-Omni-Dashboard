@@ -1,6 +1,8 @@
 import { Component, onMount, onCleanup, createEffect } from 'solid-js';
 import * as echarts from 'echarts';
 import { Globe2 } from 'lucide-solid';
+import { useTheme } from '../utils/theme';
+import { getChartThemeTokens } from '../utils/chartTheme';
 
 interface CountryItem {
   country: string;
@@ -15,6 +17,7 @@ interface CountryBarChartProps {
 }
 
 export const CountryBarChart: Component<CountryBarChartProps> = (props) => {
+  const { theme } = useTheme();
   let containerRef!: HTMLDivElement;
   let chartInstance: echarts.ECharts | null = null;
 
@@ -34,6 +37,7 @@ export const CountryBarChart: Component<CountryBarChartProps> = (props) => {
   createEffect(() => {
     if (!chartInstance) return;
 
+    const t = getChartThemeTokens(theme());
     const items = [...(props.data || [])].reverse(); // Reverse for bottom-to-top horizontal bar
     const categories = items.map(c => (c.flag ? `${c.flag} ` : '') + (c.country || 'Unknown').toUpperCase());
     const values = items.map(c => c.clicks);
@@ -43,14 +47,14 @@ export const CountryBarChart: Component<CountryBarChartProps> = (props) => {
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        backgroundColor: '#0f172a',
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        textStyle: { color: '#ffffff', fontSize: 12 },
+        backgroundColor: t.tooltipBg,
+        borderColor: t.tooltipBorder,
+        textStyle: { color: t.tooltipText, fontSize: 12 },
         formatter: (params: any) => {
           const item = params[0];
           return `
-            <div style="font-weight:600;color:#fff">${item.name}</div>
-            <div style="color:#94a3b8">Clicks: <strong style="color:#10b981">${item.value.toLocaleString()}</strong></div>
+            <div style="font-weight:600;color:${t.textColor}">${item.name}</div>
+            <div style="color:${t.subTextColor}">Clicks: <strong style="color:#10b981">${item.value.toLocaleString()}</strong></div>
           `;
         }
       },
@@ -63,9 +67,9 @@ export const CountryBarChart: Component<CountryBarChartProps> = (props) => {
       },
       xAxis: {
         type: 'value',
-        splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } },
+        splitLine: { lineStyle: { color: t.splitLineColor } },
         axisLabel: {
-          color: '#94a3b8',
+          color: t.subTextColor,
           fontSize: 10,
           formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)
         }
@@ -75,7 +79,7 @@ export const CountryBarChart: Component<CountryBarChartProps> = (props) => {
         data: categories,
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: '#e2e8f0', fontSize: 11 }
+        axisLabel: { color: t.textColor, fontSize: 11 }
       },
       series: [
         {

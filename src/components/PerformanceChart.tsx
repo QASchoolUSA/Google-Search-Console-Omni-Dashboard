@@ -2,6 +2,8 @@ import { Component, createSignal, onMount, onCleanup, createEffect } from 'solid
 import * as echarts from 'echarts';
 import { TrendingUp } from 'lucide-solid';
 import { DailyMetric } from '../types';
+import { useTheme } from '../utils/theme';
+import { getChartThemeTokens } from '../utils/chartTheme';
 
 interface PerformanceChartProps {
   timeline: DailyMetric[];
@@ -10,6 +12,7 @@ interface PerformanceChartProps {
 }
 
 export const PerformanceChart: Component<PerformanceChartProps> = (props) => {
+  const { theme } = useTheme();
   let containerRef!: HTMLDivElement;
   let chartInstance: echarts.ECharts | null = null;
 
@@ -40,6 +43,7 @@ export const PerformanceChart: Component<PerformanceChartProps> = (props) => {
   createEffect(() => {
     if (!chartInstance) return;
 
+    const t = getChartThemeTokens(theme());
     const timeline = props.timeline || [];
     const dates = timeline.map(d => d.date);
     const clicks = timeline.map(d => d.clicks);
@@ -52,11 +56,11 @@ export const PerformanceChart: Component<PerformanceChartProps> = (props) => {
       {
         type: 'value',
         name: 'Clicks',
-        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        nameTextStyle: { color: t.subTextColor, fontSize: 11 },
         position: 'left',
-        splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } },
+        splitLine: { lineStyle: { color: t.splitLineColor } },
         axisLabel: {
-          color: '#94a3b8',
+          color: t.subTextColor,
           fontSize: 11,
           formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)
         }
@@ -64,11 +68,11 @@ export const PerformanceChart: Component<PerformanceChartProps> = (props) => {
       {
         type: 'value',
         name: 'Impressions',
-        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        nameTextStyle: { color: t.subTextColor, fontSize: 11 },
         position: 'right',
         splitLine: { show: false },
         axisLabel: {
-          color: '#94a3b8',
+          color: t.subTextColor,
           fontSize: 11,
           formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)
         }
@@ -84,11 +88,11 @@ export const PerformanceChart: Component<PerformanceChartProps> = (props) => {
         yAxisIndex: 0,
         data: clicks,
         itemStyle: { color: '#06b6d4' },
-        lineStyle: { width: 3, shadowColor: 'rgba(6, 182, 212, 0.5)', shadowBlur: 10 },
+        lineStyle: { width: 3, shadowColor: t.isDark ? 'rgba(6, 182, 212, 0.5)' : 'rgba(6, 182, 212, 0.25)', shadowBlur: 10 },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(6, 182, 212, 0.4)' },
-            { offset: 0.8, color: 'rgba(6, 182, 212, 0.03)' },
+            { offset: 0, color: t.isDark ? 'rgba(6, 182, 212, 0.4)' : 'rgba(6, 182, 212, 0.25)' },
+            { offset: 0.8, color: t.isDark ? 'rgba(6, 182, 212, 0.03)' : 'rgba(6, 182, 212, 0.01)' },
             { offset: 1, color: 'transparent' }
           ])
         }
@@ -104,11 +108,11 @@ export const PerformanceChart: Component<PerformanceChartProps> = (props) => {
         yAxisIndex: 1,
         data: impressions,
         itemStyle: { color: '#a855f7' },
-        lineStyle: { width: 2.5, shadowColor: 'rgba(168, 85, 247, 0.4)', shadowBlur: 8 },
+        lineStyle: { width: 2.5, shadowColor: t.isDark ? 'rgba(168, 85, 247, 0.4)' : 'rgba(168, 85, 247, 0.2)', shadowBlur: 8 },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(168, 85, 247, 0.25)' },
-            { offset: 0.8, color: 'rgba(168, 85, 247, 0.02)' },
+            { offset: 0, color: t.isDark ? 'rgba(168, 85, 247, 0.25)' : 'rgba(168, 85, 247, 0.18)' },
+            { offset: 0.8, color: t.isDark ? 'rgba(168, 85, 247, 0.02)' : 'rgba(168, 85, 247, 0.01)' },
             { offset: 1, color: 'transparent' }
           ])
         }
@@ -149,13 +153,13 @@ export const PerformanceChart: Component<PerformanceChartProps> = (props) => {
       animationDuration: 750,
       tooltip: {
         trigger: 'axis',
-        backgroundColor: '#0f172a',
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        textStyle: { color: '#ffffff', fontSize: 12 },
+        backgroundColor: t.tooltipBg,
+        borderColor: t.tooltipBorder,
+        textStyle: { color: t.tooltipText, fontSize: 12 },
         axisPointer: {
           type: 'cross',
-          lineStyle: { color: 'rgba(99, 102, 241, 0.6)', width: 1, type: 'dashed' },
-          crossStyle: { color: 'rgba(99, 102, 241, 0.6)' }
+          lineStyle: { color: t.pointerColor, width: 1, type: 'dashed' },
+          crossStyle: { color: t.pointerColor }
         },
         padding: [10, 14]
       },
@@ -170,9 +174,9 @@ export const PerformanceChart: Component<PerformanceChartProps> = (props) => {
         type: 'category',
         data: dates,
         boundaryGap: false,
-        axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.1)' } },
+        axisLine: { lineStyle: { color: t.axisLineColor } },
         axisLabel: {
-          color: '#94a3b8',
+          color: t.subTextColor,
           fontSize: 11,
           formatter: (v: string) => v.slice(5) // MM-DD
         }
@@ -190,11 +194,11 @@ export const PerformanceChart: Component<PerformanceChartProps> = (props) => {
           end: 100,
           height: 18,
           bottom: 10,
-          borderColor: 'transparent',
-          backgroundColor: 'rgba(15, 23, 42, 0.4)',
-          fillerColor: 'rgba(99, 102, 241, 0.2)',
-          handleStyle: { color: '#6366f1', borderColor: '#ffffff' },
-          textStyle: { color: '#94a3b8', fontSize: 10 }
+          borderColor: t.sliderBorder,
+          backgroundColor: t.sliderBg,
+          fillerColor: t.sliderFiller,
+          handleStyle: { color: t.sliderHandle, borderColor: t.textColor },
+          textStyle: { color: t.subTextColor, fontSize: 10 }
         }
       ],
       series

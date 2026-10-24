@@ -638,7 +638,7 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
               {/* Intent Distribution Ribbon */}
               <Show when={(siteData()?.aiMetrics?.intentBreakdown || []).length > 0}>
                 <div style={{
-                  background: 'rgba(255, 255, 255, 0.02)',
+                  background: 'var(--card-sub-bg)',
                   border: '1px solid var(--border-subtle)',
                   padding: '14px 18px',
                   "border-radius": 'var(--radius-md)',
@@ -648,7 +648,7 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
                   "flex-wrap": 'wrap',
                   gap: '12px'
                 }}>
-                  <div style={{ "font-size": '0.8rem', "font-weight": 600, color: '#fff', display: 'flex', "align-items": 'center', gap: '6px' }}>
+                  <div style={{ "font-size": '0.8rem', "font-weight": 600, color: 'var(--text-primary)', display: 'flex', "align-items": 'center', gap: '6px' }}>
                     <Bot size={15} color="#38bdf8" />
                     <span>Generative Intent Mix:</span>
                   </div>
@@ -656,8 +656,8 @@ export const SiteDetailModal: Component<SiteDetailModalProps> = (props) => {
                     <For each={siteData()?.aiMetrics?.intentBreakdown || []}>
                       {(b) => (
                         <div style={{
-                          background: 'rgba(15, 23, 42, 0.7)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          background: 'var(--surface-input)',
+                          border: '1px solid var(--border-subtle)',
                           padding: '4px 10px',
                           "border-radius": 'var(--radius-full)',
                           "font-size": '0.75rem',

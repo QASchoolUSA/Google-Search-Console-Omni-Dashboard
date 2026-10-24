@@ -1,6 +1,8 @@
 import { Component, onMount, onCleanup, createEffect } from 'solid-js';
 import * as echarts from 'echarts';
 import { FileSearch } from 'lucide-solid';
+import { useTheme } from '../utils/theme';
+import { getChartThemeTokens } from '../utils/chartTheme';
 
 interface IndexedPagesChartProps {
   timeline: { date: string; page_count: number }[];
@@ -8,6 +10,7 @@ interface IndexedPagesChartProps {
 }
 
 export const IndexedPagesChart: Component<IndexedPagesChartProps> = (props) => {
+  const { theme } = useTheme();
   let containerRef!: HTMLDivElement;
   let chartInstance: echarts.ECharts | null = null;
 
@@ -24,6 +27,7 @@ export const IndexedPagesChart: Component<IndexedPagesChartProps> = (props) => {
 
   createEffect(() => {
     if (!chartInstance) return;
+    const t = getChartThemeTokens(theme());
     const timeline = props.timeline || [];
     const dates = timeline.map((d) => d.date);
     const counts = timeline.map((d) => d.page_count);
@@ -33,29 +37,29 @@ export const IndexedPagesChart: Component<IndexedPagesChartProps> = (props) => {
       grid: { left: 48, right: 20, top: 36, bottom: 28 },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-        borderColor: 'rgba(255,255,255,0.1)',
-        textStyle: { color: '#f8fafc', fontSize: 12 },
+        backgroundColor: t.tooltipBg,
+        borderColor: t.tooltipBorder,
+        textStyle: { color: t.tooltipText, fontSize: 12 },
         formatter: (params: any) => {
           const p = Array.isArray(params) ? params[0] : params;
-          return `<div style="font-weight:600;margin-bottom:4px">${p.axisValue}</div>
-            <div>Indexed pages: <b>${Number(p.value).toLocaleString()}</b></div>`;
+          return `<div style="font-weight:600;margin-bottom:4px;color:${t.textColor}">${p.axisValue}</div>
+            <div style="color:${t.subTextColor}">Indexed pages: <b style="color:${t.textColor}">${Number(p.value).toLocaleString()}</b></div>`;
         }
       },
       xAxis: {
         type: 'category',
         data: dates,
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
-        axisLabel: { color: '#94a3b8', fontSize: 10 },
+        axisLine: { lineStyle: { color: t.axisLineColor } },
+        axisLabel: { color: t.subTextColor, fontSize: 10 },
         axisTick: { show: false }
       },
       yAxis: {
         type: 'value',
         name: 'Pages',
-        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
-        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+        nameTextStyle: { color: t.subTextColor, fontSize: 11 },
+        splitLine: { lineStyle: { color: t.splitLineColor } },
         axisLabel: {
-          color: '#94a3b8',
+          color: t.subTextColor,
           fontSize: 11,
           formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`)
         }
@@ -71,8 +75,8 @@ export const IndexedPagesChart: Component<IndexedPagesChartProps> = (props) => {
           itemStyle: { color: '#38bdf8' },
           areaStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(56, 189, 248, 0.35)' },
-              { offset: 1, color: 'rgba(56, 189, 248, 0.02)' }
+              { offset: 0, color: t.isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(56, 189, 248, 0.22)' },
+              { offset: 1, color: t.isDark ? 'rgba(56, 189, 248, 0.02)' : 'rgba(56, 189, 248, 0.01)' }
             ])
           },
           data: counts
@@ -85,7 +89,7 @@ export const IndexedPagesChart: Component<IndexedPagesChartProps> = (props) => {
     <div class="chart-card" style={{ padding: '16px 18px' }}>
       <div style={{ display: 'flex', "align-items": 'center', gap: '8px', "margin-bottom": '8px' }}>
         <FileSearch size={16} color="#38bdf8" />
-        <h3 style={{ "font-family": 'var(--font-heading)', "font-size": '0.95rem', "font-weight": 600, color: '#fff', margin: 0 }}>
+        <h3 style={{ "font-family": 'var(--font-heading)', "font-size": '0.95rem', "font-weight": 600, color: 'var(--text-primary)', margin: 0 }}>
           {props.title || 'Indexed Pages Trend'}
         </h3>
       </div>

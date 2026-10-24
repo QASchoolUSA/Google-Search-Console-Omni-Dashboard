@@ -188,8 +188,8 @@ export const App: Component = () => {
           position: 'fixed',
           top: '20px',
           right: '24px',
-          background: 'linear-gradient(135deg, #1e293b, #0f172a)',
-          color: '#ffffff',
+          background: 'var(--surface-elevated)',
+          color: 'var(--text-primary)',
           padding: '12px 20px',
           "border-radius": 'var(--radius-md)',
           border: '1px solid var(--border-accent)',
@@ -226,7 +226,7 @@ export const App: Component = () => {
               <Lock size={26} color="#38bdf8" />
             </div>
             <div>
-              <h2 style={{ "font-size": '1.15rem', color: '#fff', "font-family": 'var(--font-heading)', "margin-bottom": '4px' }}>
+              <h2 style={{ "font-size": '1.15rem', color: 'var(--text-primary)', "font-family": 'var(--font-heading)', "margin-bottom": '4px' }}>
                 Google Search Console Disconnected
               </h2>
               <p style={{ "font-size": '0.84rem', color: 'var(--text-secondary)', "line-height": 1.5, "max-width": '620px' }}>
@@ -249,7 +249,7 @@ export const App: Component = () => {
               <ShieldCheck size={22} color="var(--color-success)" />
             </div>
             <div>
-              <h3 style={{ "font-size": '1.05rem', color: '#fff', "font-family": 'var(--font-heading)', "margin-bottom": '2px' }}>
+              <h3 style={{ "font-size": '1.05rem', color: 'var(--text-primary)', "font-family": 'var(--font-heading)', "margin-bottom": '2px' }}>
                 Connected as {authStatus().user?.email}
               </h3>
               <p style={{ "font-size": '0.82rem', color: 'var(--text-secondary)' }}>

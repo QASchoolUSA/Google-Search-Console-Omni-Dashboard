@@ -98,7 +98,7 @@ export const DataAuditModal: Component<DataAuditModalProps> = (props) => {
                   <AlertTriangle size={28} color="var(--color-warning)" />
                 )}
                 <div>
-                  <h3 style={{ "font-family": 'var(--font-heading)', "font-size": '1.1rem', color: '#fff' }}>
+                  <h3 style={{ "font-family": 'var(--font-heading)', "font-size": '1.1rem', color: 'var(--text-primary)' }}>
                     {auditData()?.parityScore}% Data Parity Verified
                   </h3>
                   <p style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>
@@ -143,7 +143,7 @@ export const DataAuditModal: Component<DataAuditModalProps> = (props) => {
               <div class="site-card-metrics-row" style={{ "grid-template-columns": '1fr', padding: '12px' }}>
                 <span style={{ "font-size": '0.72rem', color: 'var(--text-muted)' }}>TOTAL CLICKS</span>
                 <div style={{ display: 'flex', "justify-content": 'space-between', "margin-top": '4px' }}>
-                  <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>GSC Live: <strong style={{ color: '#fff' }}>{auditData()?.summary.clicks.live.toLocaleString()}</strong></span>
+                  <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>GSC Live: <strong style={{ color: 'var(--text-primary)' }}>{auditData()?.summary.clicks.live.toLocaleString()}</strong></span>
                   <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>DB: <strong style={{ color: 'var(--color-secondary)' }}>{auditData()?.summary.clicks.db.toLocaleString()}</strong></span>
                 </div>
                 <div style={{ "font-size": '0.74rem', "font-weight": 600, color: auditData()?.summary.clicks.diff === 0 ? 'var(--color-success)' : 'var(--color-danger)', "margin-top": '4px' }}>
@@ -155,7 +155,7 @@ export const DataAuditModal: Component<DataAuditModalProps> = (props) => {
               <div class="site-card-metrics-row" style={{ "grid-template-columns": '1fr', padding: '12px' }}>
                 <span style={{ "font-size": '0.72rem', color: 'var(--text-muted)' }}>TOTAL IMPRESSIONS</span>
                 <div style={{ display: 'flex', "justify-content": 'space-between', "margin-top": '4px' }}>
-                  <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>GSC Live: <strong style={{ color: '#fff' }}>{auditData()?.summary.impressions.live.toLocaleString()}</strong></span>
+                  <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>GSC Live: <strong style={{ color: 'var(--text-primary)' }}>{auditData()?.summary.impressions.live.toLocaleString()}</strong></span>
                   <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>DB: <strong style={{ color: 'var(--color-purple)' }}>{auditData()?.summary.impressions.db.toLocaleString()}</strong></span>
                 </div>
                 <div style={{ "font-size": '0.74rem', "font-weight": 600, color: auditData()?.summary.impressions.diff === 0 ? 'var(--color-success)' : 'var(--color-danger)', "margin-top": '4px' }}>
@@ -167,7 +167,7 @@ export const DataAuditModal: Component<DataAuditModalProps> = (props) => {
               <div class="site-card-metrics-row" style={{ "grid-template-columns": '1fr', padding: '12px' }}>
                 <span style={{ "font-size": '0.72rem', color: 'var(--text-muted)' }}>AVERAGE CTR</span>
                 <div style={{ display: 'flex', "justify-content": 'space-between', "margin-top": '4px' }}>
-                  <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>GSC: <strong style={{ color: '#fff' }}>{auditData()?.summary.ctr.live}%</strong></span>
+                  <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>GSC: <strong style={{ color: 'var(--text-primary)' }}>{auditData()?.summary.ctr.live}%</strong></span>
                   <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>DB: <strong style={{ color: 'var(--color-success)' }}>{auditData()?.summary.ctr.db}%</strong></span>
                 </div>
                 <div style={{ "font-size": '0.74rem', "font-weight": 600, color: auditData()?.summary.ctr.diff === 0 ? 'var(--color-success)' : 'var(--color-danger)', "margin-top": '4px' }}>
@@ -179,7 +179,7 @@ export const DataAuditModal: Component<DataAuditModalProps> = (props) => {
               <div class="site-card-metrics-row" style={{ "grid-template-columns": '1fr', padding: '12px' }}>
                 <span style={{ "font-size": '0.72rem', color: 'var(--text-muted)' }}>WEIGHTED POSITION</span>
                 <div style={{ display: 'flex', "justify-content": 'space-between', "margin-top": '4px' }}>
-                  <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>GSC: <strong style={{ color: '#fff' }}>{auditData()?.summary.position.live}</strong></span>
+                  <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>GSC: <strong style={{ color: 'var(--text-primary)' }}>{auditData()?.summary.position.live}</strong></span>
                   <span style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>DB: <strong style={{ color: 'var(--color-warning)' }}>{auditData()?.summary.position.db}</strong></span>
                 </div>
                 <div style={{ "font-size": '0.74rem', "font-weight": 600, color: auditData()?.summary.position.diff === 0 ? 'var(--color-success)' : 'var(--color-danger)', "margin-top": '4px' }}>
@@ -190,7 +190,7 @@ export const DataAuditModal: Component<DataAuditModalProps> = (props) => {
 
             {/* Day-by-Day Audit Breakdown Table */}
             <div style={{ display: 'flex', "flex-direction": 'column', gap: '8px' }}>
-              <h4 style={{ "font-size": '0.9rem', color: '#fff', "font-weight": 600 }}>
+              <h4 style={{ "font-size": '0.9rem', color: 'var(--text-primary)', "font-weight": 600 }}>
                 Day-by-Day Verification Breakdown
               </h4>
 
@@ -212,7 +212,7 @@ export const DataAuditModal: Component<DataAuditModalProps> = (props) => {
                     <For each={auditData()?.auditDays || []}>
                       {(day) => (
                         <tr>
-                          <td style={{ "font-weight": 600, color: '#fff' }}>{day.date}</td>
+                          <td style={{ "font-weight": 600, color: 'var(--text-primary)' }}>{day.date}</td>
                           <td>{day.live.clicks.toLocaleString()}</td>
                           <td style={{ color: 'var(--color-secondary)' }}>{day.db.clicks.toLocaleString()}</td>
                           <td style={{ color: day.clicksDiff === 0 ? 'var(--color-success)' : 'var(--color-danger)', "font-weight": 600 }}>

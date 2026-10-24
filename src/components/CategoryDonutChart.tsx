@@ -1,6 +1,8 @@
 import { Component, onMount, onCleanup, createEffect } from 'solid-js';
 import * as echarts from 'echarts';
 import { PieChart } from 'lucide-solid';
+import { useTheme } from '../utils/theme';
+import { getChartThemeTokens } from '../utils/chartTheme';
 
 interface CategoryBreakdownItem {
   categoryId: string;
@@ -16,6 +18,7 @@ interface CategoryDonutChartProps {
 }
 
 export const CategoryDonutChart: Component<CategoryDonutChartProps> = (props) => {
+  const { theme } = useTheme();
   let containerRef!: HTMLDivElement;
   let chartInstance: echarts.ECharts | null = null;
 
@@ -36,6 +39,7 @@ export const CategoryDonutChart: Component<CategoryDonutChartProps> = (props) =>
   createEffect(() => {
     if (!chartInstance) return;
 
+    const t = getChartThemeTokens(theme());
     const items = props.data || [];
     const totalClicks = items.reduce((acc, item) => acc + item.clicks, 0);
 
@@ -51,20 +55,20 @@ export const CategoryDonutChart: Component<CategoryDonutChartProps> = (props) =>
       animation: true,
       tooltip: {
         trigger: 'item',
-        backgroundColor: '#0f172a',
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        textStyle: { color: '#ffffff', fontSize: 12 },
+        backgroundColor: t.tooltipBg,
+        borderColor: t.tooltipBorder,
+        textStyle: { color: t.tooltipText, fontSize: 12 },
         formatter: (params: any) => {
           const val = params.value.toLocaleString();
           return `
-            <div style="font-weight:600;margin-bottom:4px;color:#fff">${params.name}</div>
-            <div style="display:flex;justify-content:space-between;gap:12px;color:#94a3b8">
+            <div style="font-weight:600;margin-bottom:4px;color:${t.textColor}">${params.name}</div>
+            <div style="display:flex;justify-content:space-between;gap:12px;color:${t.subTextColor}">
               <span>Clicks:</span>
               <strong style="color:#06b6d4">${val}</strong>
             </div>
-            <div style="display:flex;justify-content:space-between;gap:12px;color:#94a3b8">
+            <div style="display:flex;justify-content:space-between;gap:12px;color:${t.subTextColor}">
               <span>Share:</span>
-              <strong style="color:#fff">${params.percent}%</strong>
+              <strong style="color:${t.textColor}">${params.percent}%</strong>
             </div>
           `;
         }
@@ -75,7 +79,7 @@ export const CategoryDonutChart: Component<CategoryDonutChartProps> = (props) =>
         itemWidth: 10,
         itemHeight: 10,
         icon: 'circle',
-        textStyle: { color: '#94a3b8', fontSize: 11 }
+        textStyle: { color: t.subTextColor, fontSize: 11 }
       },
       series: [
         {
@@ -86,7 +90,7 @@ export const CategoryDonutChart: Component<CategoryDonutChartProps> = (props) =>
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 6,
-            borderColor: '#0f172a',
+            borderColor: t.isDark ? '#0f172a' : '#ffffff',
             borderWidth: 3
           },
           label: {
@@ -98,14 +102,14 @@ export const CategoryDonutChart: Component<CategoryDonutChartProps> = (props) =>
             },
             rich: {
               total: {
-                color: '#ffffff',
+                color: t.textColor,
                 fontSize: 22,
                 fontWeight: 700,
                 lineHeight: 28,
                 fontFamily: 'Outfit, sans-serif'
               },
               lbl: {
-                color: '#94a3b8',
+                color: t.subTextColor,
                 fontSize: 11,
                 lineHeight: 16
               }

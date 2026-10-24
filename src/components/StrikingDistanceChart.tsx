@@ -2,12 +2,15 @@ import { Component, onMount, onCleanup, createEffect } from 'solid-js';
 import * as echarts from 'echarts';
 import { Target } from 'lucide-solid';
 import { QueryMetric } from '../types';
+import { useTheme } from '../utils/theme';
+import { getChartThemeTokens } from '../utils/chartTheme';
 
 interface StrikingDistanceChartProps {
   queries: QueryMetric[];
 }
 
 export const StrikingDistanceChart: Component<StrikingDistanceChartProps> = (props) => {
+  const { theme } = useTheme();
   let containerRef!: HTMLDivElement;
   let chartInstance: echarts.ECharts | null = null;
 
@@ -27,6 +30,7 @@ export const StrikingDistanceChart: Component<StrikingDistanceChartProps> = (pro
   createEffect(() => {
     if (!chartInstance) return;
 
+    const t = getChartThemeTokens(theme());
     // Filter queries that are in striking distance (positions 8 to 22) or top queries
     const list = props.queries || [];
     const data = list.map(q => [
@@ -41,18 +45,18 @@ export const StrikingDistanceChart: Component<StrikingDistanceChartProps> = (pro
       backgroundColor: 'transparent',
       tooltip: {
         trigger: 'item',
-        backgroundColor: '#0f172a',
-        borderColor: 'rgba(255, 255, 255, 0.15)',
-        textStyle: { color: '#ffffff', fontSize: 12 },
+        backgroundColor: t.tooltipBg,
+        borderColor: t.tooltipBorder,
+        textStyle: { color: t.tooltipText, fontSize: 12 },
         formatter: (params: any) => {
           const [pos, imp, clicks, query, ctr] = params.data;
           return `
-            <div style="font-weight:700;color:#38bdf8;margin-bottom:6px">"${query}"</div>
-            <div style="display:grid;grid-template-columns:auto auto;gap:6px;font-size:11px;color:#94a3b8">
-              <span>Avg Position:</span> <strong style="color:#fbbf24">${pos}</strong>
-              <span>Impressions:</span> <strong style="color:#c084fc">${imp.toLocaleString()}</strong>
-              <span>Clicks:</span> <strong style="color:#22d3ee">${clicks.toLocaleString()}</strong>
-              <span>CTR:</span> <strong style="color:#34d399">${ctr}%</strong>
+            <div style="font-weight:700;color:${t.isDark ? '#38bdf8' : '#0284c7'};margin-bottom:6px">"${query}"</div>
+            <div style="display:grid;grid-template-columns:auto auto;gap:6px;font-size:11px;color:${t.subTextColor}">
+              <span>Avg Position:</span> <strong style="color:#f59e0b">${pos}</strong>
+              <span>Impressions:</span> <strong style="color:#a855f7">${imp.toLocaleString()}</strong>
+              <span>Clicks:</span> <strong style="color:#06b6d4">${clicks.toLocaleString()}</strong>
+              <span>CTR:</span> <strong style="color:#10b981">${ctr}%</strong>
             </div>
           `;
         }
@@ -69,20 +73,20 @@ export const StrikingDistanceChart: Component<StrikingDistanceChartProps> = (pro
         name: 'Position',
         nameLocation: 'middle',
         nameGap: 24,
-        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        nameTextStyle: { color: t.subTextColor, fontSize: 11 },
         min: 1,
         max: 20,
         inverse: true, // Rank 1 on left, rank 20 on right
-        splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } },
-        axisLabel: { color: '#94a3b8', fontSize: 10 }
+        splitLine: { lineStyle: { color: t.splitLineColor } },
+        axisLabel: { color: t.subTextColor, fontSize: 10 }
       },
       yAxis: {
         type: 'value',
         name: 'Impressions',
-        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
-        splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)' } },
+        nameTextStyle: { color: t.subTextColor, fontSize: 11 },
+        splitLine: { lineStyle: { color: t.splitLineColor } },
         axisLabel: {
-          color: '#94a3b8',
+          color: t.subTextColor,
           fontSize: 10,
           formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)
         }
@@ -102,7 +106,7 @@ export const StrikingDistanceChart: Component<StrikingDistanceChartProps> = (pro
               return '#f59e0b'; // Amber for Striking Distance (Page 2)
             },
             shadowBlur: 8,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
+            shadowColor: t.isDark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(15, 23, 42, 0.15)'
           },
           data
         }

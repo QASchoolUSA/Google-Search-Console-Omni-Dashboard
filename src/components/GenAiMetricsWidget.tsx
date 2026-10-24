@@ -34,7 +34,7 @@ export const GenAiMetricsWidget: Component<GenAiMetricsWidgetProps> = (props) =>
           </div>
           <div>
             <div style={{ display: 'flex', "align-items": 'center', gap: '8px' }}>
-              <h3 style={{ "font-family": 'var(--font-heading)', "font-size": '1.1rem', "font-weight": 600, color: '#ffffff' }}>
+              <h3 style={{ "font-family": 'var(--font-heading)', "font-size": '1.1rem', "font-weight": 600, color: 'var(--text-primary)' }}>
                 Generative AI & AI Overviews Intelligence
               </h3>
               <span class="genai-badge-pill">
@@ -111,7 +111,7 @@ export const GenAiMetricsWidget: Component<GenAiMetricsWidgetProps> = (props) =>
       <div class="genai-content-grid">
         {/* Intent Distribution */}
         <div class="genai-subcard">
-          <h4 style={{ "font-size": '0.85rem', "font-weight": 600, color: '#fff', "margin-bottom": '12px', display: 'flex', "align-items": 'center', gap: '6px' }}>
+          <h4 style={{ "font-size": '0.85rem', "font-weight": 600, color: 'var(--text-primary)', "margin-bottom": '12px', display: 'flex', "align-items": 'center', gap: '6px' }}>
             <Bot size={15} color="#38bdf8" />
             <span>Generative Query Intent Distribution</span>
           </h4>
@@ -132,12 +132,12 @@ export const GenAiMetricsWidget: Component<GenAiMetricsWidgetProps> = (props) =>
                   return (
                     <div style={{ display: 'flex', "flex-direction": 'column', gap: '4px' }}>
                       <div style={{ display: 'flex', "justify-content": 'space-between', "font-size": '0.78rem' }}>
-                        <span style={{ color: '#e2e8f0', "font-weight": 500 }}>{formatIntentLabel(b.intent)}</span>
+                        <span style={{ color: 'var(--text-primary)', "font-weight": 500 }}>{formatIntentLabel(b.intent)}</span>
                         <span style={{ color: 'var(--text-muted)' }}>
                           <strong style={{ color: 'var(--text-secondary)' }}>{formatNumber(b.clicks)}</strong> clicks • {formatNumber(b.impressions)} imp
                         </span>
                       </div>
-                      <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.06)', "border-radius": '3px', overflow: 'hidden' }}>
+                      <div style={{ width: '100%', height: '6px', background: 'var(--border-subtle)', "border-radius": '3px', overflow: 'hidden' }}>
                         <div 
                           style={{ 
                             width: `${pct}%`, 
@@ -160,7 +160,7 @@ export const GenAiMetricsWidget: Component<GenAiMetricsWidgetProps> = (props) =>
 
         {/* Top AI Candidate Queries */}
         <div class="genai-subcard">
-          <h4 style={{ "font-size": '0.85rem', "font-weight": 600, color: '#fff', "margin-bottom": '12px', display: 'flex', "align-items": 'center', gap: '6px' }}>
+          <h4 style={{ "font-size": '0.85rem', "font-weight": 600, color: 'var(--text-primary)', "margin-bottom": '12px', display: 'flex', "align-items": 'center', gap: '6px' }}>
             <Sparkles size={15} color="#a78bfa" />
             <span>Top AI Overview Candidate Queries</span>
           </h4>
@@ -181,13 +181,13 @@ export const GenAiMetricsWidget: Component<GenAiMetricsWidgetProps> = (props) =>
                     "align-items": 'center',
                     "justify-content": 'space-between',
                     padding: '8px 12px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    background: 'var(--surface-input)',
+                    border: '1px solid var(--border-subtle)',
                     "border-radius": 'var(--radius-sm)',
                     gap: '10px'
                   }}>
                     <div style={{ overflow: 'hidden', "text-overflow": 'ellipsis', "white-space": 'nowrap', "max-width": '65%' }}>
-                      <div style={{ "font-size": '0.82rem', "font-weight": 600, color: '#f8fafc', overflow: 'hidden', "text-overflow": 'ellipsis' }}>
+                      <div style={{ "font-size": '0.82rem', "font-weight": 600, color: 'var(--text-primary)', overflow: 'hidden', "text-overflow": 'ellipsis' }}>
                         "{q.query}"
                       </div>
                       <div style={{ "font-size": '0.7rem', color: 'var(--text-muted)' }}>

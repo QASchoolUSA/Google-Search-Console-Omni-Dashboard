@@ -178,7 +178,7 @@ export const IndexedPagesWidget: Component<IndexedPagesWidgetProps> = (props) =>
           {(t) => (
             <div
               style={{
-                background: 'rgba(255,255,255,0.03)',
+                background: 'var(--card-sub-bg)',
                 border: '1px solid var(--border-subtle)',
                 "border-radius": 'var(--radius-sm)',
                 padding: '8px 6px',

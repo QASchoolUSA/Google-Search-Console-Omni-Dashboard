@@ -123,7 +123,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
     <div style={{ display: 'flex', "flex-direction": 'column', gap: '16px' }}>
       <div style={{ display: 'flex', "justify-content": 'space-between', "align-items": 'center' }}>
         <div>
-          <h2 style={{ "font-family": 'var(--font-heading)', "font-size": '1.15rem', "font-weight": 600, color: '#fff' }}>
+          <h2 style={{ "font-family": 'var(--font-heading)', "font-size": '1.15rem', "font-weight": 600, color: 'var(--text-primary)' }}>
             Monitored Properties ({props.properties.length})
           </h2>
           <p style={{ "font-size": '0.78rem', color: 'var(--text-secondary)' }}>
@@ -134,7 +134,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
 
       <Show when={props.properties.length === 0}>
         <div style={{
-          background: 'var(--bg-card)',
+          background: 'var(--surface-card)',
           border: '1px dashed var(--border-subtle)',
           padding: '48px 24px',
           "border-radius": 'var(--radius-lg)',
@@ -145,7 +145,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
           gap: '12px'
         }}>
           <Globe size={36} color="var(--text-muted)" />
-          <h3 style={{ "font-size": '1.05rem', color: '#fff' }}>No Properties Synced Yet</h3>
+          <h3 style={{ "font-size": '1.05rem', color: 'var(--text-primary)' }}>No Properties Synced Yet</h3>
           <p style={{ "font-size": '0.82rem', color: 'var(--text-secondary)', "max-width": '420px', "line-height": 1.5 }}>
             Connect your Google account and click <strong>Sync All</strong> in the header to discover and synchronize your verified Google Search Console properties.
           </p>
@@ -217,7 +217,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                       padding: '3px 8px',
                       "font-size": '0.74rem',
                       height: '26px',
-                      background: 'rgba(255, 255, 255, 0.05)',
+                      background: 'var(--surface-input)',
                       border: `1px solid ${site.category_color || 'var(--border-subtle)'}`,
                       color: site.category_color || 'var(--text-primary)',
                       "border-radius": 'var(--radius-full)',
@@ -392,7 +392,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                           <Globe size={15} />
                         </div>
                         <div>
-                          <div style={{ "font-weight": 600, color: '#fff' }}>{site.display_name}</div>
+                          <div style={{ "font-weight": 600, color: 'var(--text-primary)' }}>{site.display_name}</div>
                           <div style={{ "font-size": '0.72rem', color: 'var(--text-muted)' }}>{site.site_url}</div>
                         </div>
                       </div>
@@ -404,7 +404,7 @@ export const SitesExplorer: Component<SitesExplorerProps> = (props) => {
                         style={{
                           padding: '3px 8px',
                           "font-size": '0.75rem',
-                          background: 'rgba(255, 255, 255, 0.05)',
+                          background: 'var(--surface-input)',
                           border: `1px solid ${site.category_color || 'var(--border-subtle)'}`,
                           color: site.category_color || 'var(--text-primary)',
                           "border-radius": 'var(--radius-full)',

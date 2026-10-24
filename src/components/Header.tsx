@@ -5,9 +5,12 @@ import {
   LogIn, 
   LogOut, 
   ShieldCheck,
-  Radio
+  Radio,
+  Sun,
+  Moon
 } from 'lucide-solid';
 import { UserAuthStatus } from '../types';
+import { useTheme } from '../utils/theme';
 
 interface HeaderProps {
   days: number;
@@ -20,6 +23,8 @@ interface HeaderProps {
 }
 
 export const Header: Component<HeaderProps> = (props) => {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <header class="header-bar">
       <div class="brand-section">
@@ -73,8 +78,8 @@ export const Header: Component<HeaderProps> = (props) => {
           class="engine-pill" 
           style={{ 
             padding: '6px 12px',
-            background: props.authStatus.authenticated ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-            color: props.authStatus.authenticated ? '#34d399' : 'var(--text-muted)',
+            background: props.authStatus.authenticated ? 'rgba(16, 185, 129, 0.12)' : 'var(--surface-input)',
+            color: props.authStatus.authenticated ? 'var(--color-success)' : 'var(--text-muted)',
             border: `1px solid ${props.authStatus.authenticated ? 'rgba(16, 185, 129, 0.25)' : 'var(--border-subtle)'}`,
             display: 'flex',
             "align-items": 'center',
@@ -84,6 +89,22 @@ export const Header: Component<HeaderProps> = (props) => {
           <Radio size={13} class={props.authStatus.authenticated ? 'pulse' : ''} />
           <span>{props.authStatus.authenticated ? 'Live GSC Connected' : 'GSC Disconnected'}</span>
         </div>
+
+        {/* Theme Switcher Toggle */}
+        <button 
+          class="theme-toggle-btn"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme() === 'dark' ? 'light' : 'dark'} theme`}
+          title={`Switch to ${theme() === 'dark' ? 'light' : 'dark'} theme`}
+        >
+          <span class="theme-icon-wrap">
+            {theme() === 'dark' ? (
+              <Sun size={17} style={{ color: '#f59e0b' }} />
+            ) : (
+              <Moon size={17} style={{ color: 'var(--color-primary)' }} />
+            )}
+          </span>
+        </button>
 
         {/* On-Demand Sync Button */}
         <button 
@@ -107,7 +128,8 @@ export const Header: Component<HeaderProps> = (props) => {
               display: 'flex', 
               "align-items": 'center', 
               gap: '6px', 
-              background: 'rgba(255,255,255,0.06)', 
+              background: 'var(--card-sub-bg)', 
+              border: '1px solid var(--border-subtle)',
               padding: '5px 12px', 
               "border-radius": 'var(--radius-full)',
               "font-size": '0.78rem'

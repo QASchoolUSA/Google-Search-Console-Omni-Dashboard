@@ -53,8 +53,8 @@ export const CategoryModal: Component<CategoryModalProps> = (props) => {
 
         <div class="modal-body">
           {/* Create New Category Form */}
-          <form onSubmit={handleCreate} style={{ display: 'flex', "flex-direction": 'column', gap: '14px', background: 'rgba(255,255,255,0.03)', padding: '16px', "border-radius": 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-            <h4 style={{ "font-size": '0.94rem', color: '#fff', "font-weight": 600 }}>Create New Group</h4>
+          <form onSubmit={handleCreate} style={{ display: 'flex', "flex-direction": 'column', gap: '14px', background: 'var(--card-sub-bg)', padding: '16px', "border-radius": 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+            <h4 style={{ "font-size": '0.94rem', color: 'var(--text-primary)', "font-weight": 600 }}>Create New Group</h4>
 
             <div class="form-group">
               <label class="form-label">Category Name</label>
@@ -129,7 +129,7 @@ export const CategoryModal: Component<CategoryModalProps> = (props) => {
                     <div style={{ display: 'flex', "align-items": 'center', gap: '10px' }}>
                       <span class="cat-color-dot" style={{ "background-color": cat.color, width: '12px', height: '12px' }}></span>
                       <div>
-                        <div style={{ "font-weight": 600, color: '#fff', "font-size": '0.88rem' }}>{cat.name}</div>
+                        <div style={{ "font-weight": 600, color: 'var(--text-primary)', "font-size": '0.88rem' }}>{cat.name}</div>
                         <div style={{ "font-size": '0.74rem', color: 'var(--text-muted)' }}>
                           {cat.site_count || 0} websites assigned {cat.description ? `• ${cat.description}` : ''}
                         </div>
